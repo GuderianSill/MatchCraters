@@ -1,0 +1,32 @@
+[
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/main.cpp.o -c /home/guderian/code/MatchCrater/src/main.cpp",
+  "file": "/home/guderian/code/MatchCrater/src/main.cpp"
+},
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/crater.cpp.o -c /home/guderian/code/MatchCrater/src/crater.cpp",
+  "file": "/home/guderian/code/MatchCrater/src/crater.cpp"
+},
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/debug.cxx.o -c /home/guderian/code/MatchCrater/src/debug.cxx",
+  "file": "/home/guderian/code/MatchCrater/src/debug.cxx"
+},
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/getdata.cpp.o -c /home/guderian/code/MatchCrater/src/getdata.cpp",
+  "file": "/home/guderian/code/MatchCrater/src/getdata.cpp"
+},
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o -c /home/guderian/code/MatchCrater/src/kdtree.cpp",
+  "file": "/home/guderian/code/MatchCrater/src/kdtree.cpp"
+},
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o -c /home/guderian/code/MatchCrater/src/MatchingCrater.cpp",
+  "file": "/home/guderian/code/MatchCrater/src/MatchingCrater.cpp"
+}
+]
