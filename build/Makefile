@@ -129,6 +129,30 @@ MatchCrater/fast:
 	$(MAKE) $(MAKESILENT) -f CMakeFiles/MatchCrater.dir/build.make CMakeFiles/MatchCrater.dir/build
 .PHONY : MatchCrater/fast
 
+src/GDALTransformer.o: src/GDALTransformer.cpp.o
+.PHONY : src/GDALTransformer.o
+
+# target to build an object file
+src/GDALTransformer.cpp.o:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MatchCrater.dir/build.make CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o
+.PHONY : src/GDALTransformer.cpp.o
+
+src/GDALTransformer.i: src/GDALTransformer.cpp.i
+.PHONY : src/GDALTransformer.i
+
+# target to preprocess a source file
+src/GDALTransformer.cpp.i:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MatchCrater.dir/build.make CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.i
+.PHONY : src/GDALTransformer.cpp.i
+
+src/GDALTransformer.s: src/GDALTransformer.cpp.s
+.PHONY : src/GDALTransformer.s
+
+# target to generate assembly for a file
+src/GDALTransformer.cpp.s:
+	$(MAKE) $(MAKESILENT) -f CMakeFiles/MatchCrater.dir/build.make CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.s
+.PHONY : src/GDALTransformer.cpp.s
+
 src/MatchingCrater.o: src/MatchingCrater.cpp.o
 .PHONY : src/MatchingCrater.o
 
@@ -282,6 +306,9 @@ help:
 	@echo "... edit_cache"
 	@echo "... rebuild_cache"
 	@echo "... MatchCrater"
+	@echo "... src/GDALTransformer.o"
+	@echo "... src/GDALTransformer.i"
+	@echo "... src/GDALTransformer.s"
 	@echo "... src/MatchingCrater.o"
 	@echo "... src/MatchingCrater.i"
 	@echo "... src/MatchingCrater.s"

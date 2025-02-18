@@ -2,7 +2,7 @@
 using std::cout;
 using std::endl;
 
-void ExcelGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater)
+void CSVGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater)
 {
     struct Data
     {

@@ -35,6 +35,7 @@ message("${CMAKE_SOURCE_DIR}/include")
 add_executable(MatchCrater 
 src/main.cpp
 src/crater.cpp
+src/GDALTransformer.cpp
 src/debug.cxx
 src/getdata.cpp
 src/kdtree.cpp

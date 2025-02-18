@@ -12,7 +12,7 @@ int main(int argc, char *argv[])
         std::string file1 = csvPath + argv[1];
         std::string file2 = csvPath + argv[2];
         cout << file1 << " " << file2 << endl;
-        //bool flag = std::string(argv[3]) == "true";
+        //bool flag = std::string(argv[3]) == "true";        
         bool flag = true;
         MatchingCrater* MC = new MatchingCrater(file1, file2, flag);
         MC->runMatching();

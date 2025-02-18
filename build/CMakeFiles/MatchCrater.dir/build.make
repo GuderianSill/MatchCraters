@@ -97,10 +97,24 @@ CMakeFiles/MatchCrater.dir/src/crater.cpp.s: cmake_force
 	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/MatchCrater.dir/src/crater.cpp.s"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/guderian/code/MatchCrater/src/crater.cpp -o CMakeFiles/MatchCrater.dir/src/crater.cpp.s
 
+CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o: CMakeFiles/MatchCrater.dir/flags.make
+CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o: ../src/GDALTransformer.cpp
+CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o: CMakeFiles/MatchCrater.dir/compiler_depend.ts
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o -MF CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o.d -o CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o -c /home/guderian/code/MatchCrater/src/GDALTransformer.cpp
+
+CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.i: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Preprocessing CXX source to CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.i"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -E /home/guderian/code/MatchCrater/src/GDALTransformer.cpp > CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.i
+
+CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.s: cmake_force
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green "Compiling CXX source to assembly CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.s"
+	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -S /home/guderian/code/MatchCrater/src/GDALTransformer.cpp -o CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.s
+
 CMakeFiles/MatchCrater.dir/src/debug.cxx.o: CMakeFiles/MatchCrater.dir/flags.make
 CMakeFiles/MatchCrater.dir/src/debug.cxx.o: ../src/debug.cxx
 CMakeFiles/MatchCrater.dir/src/debug.cxx.o: CMakeFiles/MatchCrater.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_3) "Building CXX object CMakeFiles/MatchCrater.dir/src/debug.cxx.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/MatchCrater.dir/src/debug.cxx.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/MatchCrater.dir/src/debug.cxx.o -MF CMakeFiles/MatchCrater.dir/src/debug.cxx.o.d -o CMakeFiles/MatchCrater.dir/src/debug.cxx.o -c /home/guderian/code/MatchCrater/src/debug.cxx
 
 CMakeFiles/MatchCrater.dir/src/debug.cxx.i: cmake_force
@@ -114,7 +128,7 @@ CMakeFiles/MatchCrater.dir/src/debug.cxx.s: cmake_force
 CMakeFiles/MatchCrater.dir/src/getdata.cpp.o: CMakeFiles/MatchCrater.dir/flags.make
 CMakeFiles/MatchCrater.dir/src/getdata.cpp.o: ../src/getdata.cpp
 CMakeFiles/MatchCrater.dir/src/getdata.cpp.o: CMakeFiles/MatchCrater.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_4) "Building CXX object CMakeFiles/MatchCrater.dir/src/getdata.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/MatchCrater.dir/src/getdata.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/MatchCrater.dir/src/getdata.cpp.o -MF CMakeFiles/MatchCrater.dir/src/getdata.cpp.o.d -o CMakeFiles/MatchCrater.dir/src/getdata.cpp.o -c /home/guderian/code/MatchCrater/src/getdata.cpp
 
 CMakeFiles/MatchCrater.dir/src/getdata.cpp.i: cmake_force
@@ -128,7 +142,7 @@ CMakeFiles/MatchCrater.dir/src/getdata.cpp.s: cmake_force
 CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o: CMakeFiles/MatchCrater.dir/flags.make
 CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o: ../src/kdtree.cpp
 CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o: CMakeFiles/MatchCrater.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_5) "Building CXX object CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o -MF CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o.d -o CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o -c /home/guderian/code/MatchCrater/src/kdtree.cpp
 
 CMakeFiles/MatchCrater.dir/src/kdtree.cpp.i: cmake_force
@@ -142,7 +156,7 @@ CMakeFiles/MatchCrater.dir/src/kdtree.cpp.s: cmake_force
 CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: CMakeFiles/MatchCrater.dir/flags.make
 CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: ../src/MatchingCrater.cpp
 CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: CMakeFiles/MatchCrater.dir/compiler_depend.ts
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_6) "Building CXX object CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Building CXX object CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o"
 	/usr/bin/c++ $(CXX_DEFINES) $(CXX_INCLUDES) $(CXX_FLAGS) -MD -MT CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o -MF CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o.d -o CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o -c /home/guderian/code/MatchCrater/src/MatchingCrater.cpp
 
 CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.i: cmake_force
@@ -157,6 +171,7 @@ CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.s: cmake_force
 MatchCrater_OBJECTS = \
 "CMakeFiles/MatchCrater.dir/src/main.cpp.o" \
 "CMakeFiles/MatchCrater.dir/src/crater.cpp.o" \
+"CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o" \
 "CMakeFiles/MatchCrater.dir/src/debug.cxx.o" \
 "CMakeFiles/MatchCrater.dir/src/getdata.cpp.o" \
 "CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o" \
@@ -167,6 +182,7 @@ MatchCrater_EXTERNAL_OBJECTS =
 
 MatchCrater: CMakeFiles/MatchCrater.dir/src/main.cpp.o
 MatchCrater: CMakeFiles/MatchCrater.dir/src/crater.cpp.o
+MatchCrater: CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o
 MatchCrater: CMakeFiles/MatchCrater.dir/src/debug.cxx.o
 MatchCrater: CMakeFiles/MatchCrater.dir/src/getdata.cpp.o
 MatchCrater: CMakeFiles/MatchCrater.dir/src/kdtree.cpp.o
@@ -230,7 +246,7 @@ MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_photo.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_imgproc.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_core.so.4.10.0
 MatchCrater: CMakeFiles/MatchCrater.dir/link.txt
-	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_7) "Linking CXX executable MatchCrater"
+	@$(CMAKE_COMMAND) -E cmake_echo_color --switch=$(COLOR) --green --bold --progress-dir=/home/guderian/code/MatchCrater/build/CMakeFiles --progress-num=$(CMAKE_PROGRESS_8) "Linking CXX executable MatchCrater"
 	$(CMAKE_COMMAND) -E cmake_link_script CMakeFiles/MatchCrater.dir/link.txt --verbose=$(VERBOSE)
 
 # Rule to build all files generated by this target.

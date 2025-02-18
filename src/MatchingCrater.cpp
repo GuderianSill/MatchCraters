@@ -5,56 +5,70 @@ using std::endl;
 
 int MatchingCrater::keyNums = 1;
 
-
-/*****************************
- *功能：配置匹配参数，获取撞击坑数据
+/**
+ * @brief 构造函数
  *
- *输入：两个CSV文件名
+ * @param name1 第一个CSV文件名
+ * @param name2 第二个CSV文件名
+ * @param isByExcel 是否使用Excel文件
  *
- *****************************/
+ * @return 无
+ */
 MatchingCrater::MatchingCrater(const std::string name1, const std::string name2, bool isByExcel)
 {
     GDALAllRegister();
+
+    //配置参数, 读取配置文件
     this->savePath = "saves/";
+    this->imagesPath = "images/";
     this->matchedByRatio = true;
+    this->configFile = "config.txt";    
+    this->tifPath = "tif/";
 
-    std::string configFile = "config.txt";
     std::ifstream config(configFile);
-
     if (!config.is_open())
     {
         throw std::runtime_error("配置文件打开错误");
         return;
     }
 
+    std::map<std::string, double> configMap;
     std::string line;
-    double cfg[7];
-    int idx = 0;
+
     while (std::getline(config, line))
     {
         std::istringstream iss(line);
         std::string label;
-        iss >> label >> cfg[idx++];
+        double value;
+        if (iss >> label >> value)
+            configMap[label] = value;
     }
-    this->RANGE = cfg[0];
-    this->DOMAIN_FACTOR_RATIO = cfg[1];
-    this->DISTANCE_MAX_GAP = cfg[2];
-    this->ANGLE_TOLERANCE = cfg[3];
-    this->DISTANCE_RATIO = cfg[4];
-    this->AREA_TOLERANCE_RATIO = cfg[5];
-    this->ASPECTRADIO_RADIO = cfg[6];
 
+    this->RANGE = configMap["RANGE"];
+    this->DOMAIN_FACTOR_RATIO = configMap["DOMAIN_FACTOR_RATIO"];
+    this->DISTANCE_MAX_GAP = configMap["DISTANCE_MAX_GAP"];
+    this->ANGLE_TOLERANCE = configMap["ANGLE_TOLERANCE"];
+    this->DISTANCE_RATIO = configMap["DISTANCE_RATIO"];
+    this->AREA_TOLERANCE_RATIO = configMap["AREA_TOLERANCE_RATIO"];
+    this->ASPECTRADIO_RADIO = configMap["ASPECTRADIO_RADIO"];
+
+    config.close();
+
+    // 从CSV读取图像信息
     try
     {
-        cout << "开始连接excel文件" << endl;
-        ExcelGet_crater_object(name1, name2, *this);
+        cout << "开始连接CSV文件" << endl;
+        CSVGet_crater_object(name1 + ".csv", name2 + ".csv", *this);
     }
     catch (const std::runtime_error& e)
     {
         std::cerr << e.what() << endl;
         exit(1);
     }
+
     std::cout << "陨石坑信息存储完成" << std::endl;
+
+    // 输出影像信息
     for (auto& craterImage: CraterImages)
     {
         craterImage->imageId = craterImage->craters[0]->get_image_id();
@@ -215,14 +229,14 @@ void MatchingCrater::test_showAllMatchingPoints()
     }
 }
 
-/*****************************
- *名称：展示key
- *功能：得到两张影像的key
- *输入：两个陨石图片对象
+/**
+ * @brief 展示两个图片的匹配点
  *
- *返回值：匹配成功后将key文件存放到keys文件夹
+ * @param image1 第一个图片的陨石坑对象
+ * @param image2 第二个图片的陨石坑对象
  *
- *****************************/
+ * @return std::vector<std::pair<std::shared_ptr<Crater>, double>> 匹配成功的陨石坑对象和概率
+ */
 void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const std::unique_ptr<CraterImage>& image2)
 {
     std::sort(image2->craters.begin(), image2->craters.end(), CompareCratersByArea);
@@ -348,8 +362,7 @@ void MatchingCrater::get_NeighborInformation()
     {
         for (auto& KDCrater: craterImage->craters)
         {
-            std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, RANGE);
-            //std::priority_queue<std::shared_ptr<NeighborInformation>, std::vector<std::shared_ptr<NeighborInformation>>, CompareNeighborInformation> neighborInformations;
+            std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, RANGE);        
             std::vector<std::shared_ptr<NeighborInformation>> neighborInformations;
             //获取邻域角度，距离信息
             for (auto neighbor: neighbors)
@@ -400,19 +413,13 @@ cv::Mat MatchingCrater::GDALBlockToMat(GDALRasterBand *band, int xoff, int yoff,
     return mat;
 }
 
-/*****************************
- *名称：判断点匹配
- *功能：判断传入的两个陨石坑是否匹配
- *输入：两个陨石坑对象
- *
- *返回值：匹配成功true
- *
- *****************************/
 /**
- * @brief MatchingCrater::judge_matchingPoint
- * @param a,
- * @param b
- * @return
+ * @brief 判断两个陨石坑是否匹配
+ *
+ * @param a 第一个陨石坑
+ * @param b 第二个陨石坑
+ *
+ * @return std::pair<bool, double> 匹配成功返回true和概率，匹配失败返回false和0
  */
 std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<std::shared_ptr<NeighborInformation>>& a, const std::vector<std::shared_ptr<NeighborInformation>> &b) const
 {
@@ -424,8 +431,6 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
     double sumNeighborPoints = std::min(pa.size(), pb.size());
     double matchedNeighborPoints = 0;
 
-    //cout << "sum:" << sumNeighborPoints << endl;
-
     //坑数比例判断
     if (!pa.size() || !pb.size()) return {false, 0};
     double CraterRatio = static_cast<double>(std::min(pa.size(), pb.size())) / std::max(pa.size(), pb.size());
@@ -433,7 +438,6 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
         return {false, 0};
 
     //cout << "坑比例匹配成功" << endl;
-
 
     for (const auto& nowa: pa)
     {
@@ -489,14 +493,14 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
     return {true, CraterRatio * probability};
 }
 
-/*****************************
- *名称：点匹配程序
- *功能：判断哪些点与传入点相匹配
- *输入：一个点和想要匹配的图像
+/**
+ * @brief 点匹配程序
  *
- *返回值：匹配成功的点的集合
+ * @param originCrater 传入点
+ * @param targetImageId 目标图像id
  *
- *****************************/
+ * @return std::vector<std::pair<std::shared_ptr<Crater>, double>> 匹配成功的点的集合
+ */
 std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching_pointProgram(const std::shared_ptr<Crater>& originCrater, const int targetImageId)
 {
 
@@ -505,10 +509,8 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
     const auto originArea = originCrater->get_area();
     const auto& originImage = CraterImages[originCrater->get_image_id()];
 
-    double lowArea = originArea/AREA_TOLERANCE_RATIO;
-    double highArea = originArea*AREA_TOLERANCE_RATIO;
-
-    //cout << lowArea << " " << highArea << endl;
+    double lowArea = originArea / AREA_TOLERANCE_RATIO;
+    double highArea = originArea * AREA_TOLERANCE_RATIO;
 
     auto lower = std::lower_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(lowArea), CompareCratersByArea);
     auto higher = std::upper_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(highArea), CompareCratersByArea);
@@ -517,7 +519,9 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
     for (auto it = lower; it != higher; it++)
     {
         if (std::max(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())/std::min(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())
-                <= ASPECTRADIO_RADIO)
+                > ASPECTRADIO_RADIO)
+            continue;
+        else
             similarCraters.push_back(*it);
     }
     /*
@@ -540,6 +544,16 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
     return results;
 }
 
+/**
+ * @brief 展示匹配的点
+ *
+ * @param key1 第一个点
+ * @param key2 第二个点
+ * @param imageId1 第一个点所在图像id
+ * @param imageId2 第二个点所在图像id
+ *
+ * @return void
+ */
 void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
 {
     std::string ID = std::to_string(keyNums++);
@@ -611,10 +625,9 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
         file1 << "IC\n" << "Crater Matched Points\n";
         file2 << "IC\n" << "Crater Matched Points\n";
 
-        std::string imagePath = "images/";
         // 获取图像路径
-        std::string imgName1 = imagePath + get_imageName(CraterImages[imageId1]->imageName) + ".png";
-        std::string imgName2 = imagePath + get_imageName(CraterImages[imageId2]->imageName) + ".png";
+        std::string imgName1 = imagesPath + get_imageName(CraterImages[imageId1]->imageName) + ".png";
+        std::string imgName2 = imagesPath + get_imageName(CraterImages[imageId2]->imageName) + ".png";
 
         auto readImageAndSumPixels = [](const std::string& imgName)
         {
@@ -656,19 +669,16 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
     }
 } 
 
-
 void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
 {
-    std::string imagePath = "images/";
     std::vector<cv::Point2f> points1, points2;
     for (auto& i: key1)
         points1.push_back({cv::Point2f(i.x, i.y)});
     for (auto& i: key2)
         points2.push_back({cv::Point2f(i.x, i.y)});
-    std::string imgName1 = imagePath + get_imageName(CraterImages[imageId1]->imageName) + ".png";
-    std::string imgName2 = imagePath + get_imageName(CraterImages[imageId2]->imageName) + ".png";
+    std::string imgName1 = imagesPath + get_imageName(CraterImages[imageId1]->imageName) + ".png";
+    std::string imgName2 = imagesPath + get_imageName(CraterImages[imageId2]->imageName) + ".png";
 
-    //cout << imgName1 << " " << imgName2 << endl;
 
     GDALDataset* Src1 = (GDALDataset*)GDALOpen(imgName1.c_str(), GA_ReadOnly);
     GDALDataset* Src2 = (GDALDataset*)GDALOpen(imgName2.c_str(), GA_ReadOnly);
@@ -736,7 +746,6 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     }
 
     std::string saveName = get_imageName(CraterImages[imageId1]->imageName) + " and " + get_imageName(CraterImages[imageId2]->imageName) + ".png";
-    std::string savePath = "saveImages/";
     // 显示合并后的图像
     cv::imshow(saveName, mergedImg);
     cv::imwrite(tmp_savePath + saveName, mergedImg);

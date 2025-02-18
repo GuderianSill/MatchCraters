@@ -11,6 +11,11 @@
 },
 {
   "directory": "/home/guderian/code/MatchCrater/build",
+  "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o -c /home/guderian/code/MatchCrater/src/GDALTransformer.cpp",
+  "file": "/home/guderian/code/MatchCrater/src/GDALTransformer.cpp"
+},
+{
+  "directory": "/home/guderian/code/MatchCrater/build",
   "command": "/usr/bin/c++  -I/home/guderian/code/MatchCrater/include -isystem /home/guderian/anaconda3/envs/cpp/include/opencv4 -isystem /home/guderian/anaconda3/envs/cpp/include  -O3 -g -std=gnu++17 -o CMakeFiles/MatchCrater.dir/src/debug.cxx.o -c /home/guderian/code/MatchCrater/src/debug.cxx",
   "file": "/home/guderian/code/MatchCrater/src/debug.cxx"
 },

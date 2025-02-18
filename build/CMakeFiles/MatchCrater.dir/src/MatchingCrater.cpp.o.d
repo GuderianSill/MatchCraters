@@ -214,13 +214,77 @@ CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: \
  /usr/include/c++/11/bits/istream.tcc \
  /home/guderian/code/MatchCrater/include/getdata.hpp \
  /home/guderian/code/MatchCrater/include/MatchingCrater.hpp \
- /usr/include/c++/11/queue /usr/include/c++/11/deque \
- /usr/include/c++/11/bits/stl_deque.h /usr/include/c++/11/bits/deque.tcc \
- /usr/include/c++/11/bits/stl_queue.h /usr/include/c++/11/set \
- /usr/include/c++/11/bits/stl_tree.h /usr/include/c++/11/bits/stl_set.h \
+ /home/guderian/code/MatchCrater/include/GDALTransformer.hpp \
+ /home/guderian/anaconda3/envs/cpp/include/gdal.h \
+ /home/guderian/anaconda3/envs/cpp/include/gdal_version.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_port.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_config.h \
+ /usr/include/c++/11/stdlib.h /usr/include/c++/11/math.h \
+ /usr/include/string.h /usr/include/strings.h \
+ /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
+ /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/limits.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/syslimits.h \
+ /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/local_lim.h \
+ /usr/include/linux/limits.h \
+ /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/xopen_lim.h \
+ /usr/include/x86_64-linux-gnu/bits/uio_lim.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_error.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_progress.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_virtualmem.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_vsi.h \
+ /usr/lib/gcc/x86_64-linux-gnu/11/include/stdbool.h /usr/include/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
+ /usr/include/x86_64-linux-gnu/bits/environments.h \
+ /usr/include/x86_64-linux-gnu/bits/confname.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
+ /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd.h \
+ /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
+ /usr/include/linux/close_range.h \
+ /usr/include/x86_64-linux-gnu/sys/stat.h \
+ /usr/include/x86_64-linux-gnu/bits/stat.h \
+ /usr/include/x86_64-linux-gnu/bits/struct_stat.h \
+ /usr/include/x86_64-linux-gnu/bits/statx.h /usr/include/linux/stat.h \
+ /usr/include/linux/types.h /usr/include/x86_64-linux-gnu/asm/types.h \
+ /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h \
+ /usr/include/x86_64-linux-gnu/asm/bitsperlong.h \
+ /usr/include/asm-generic/bitsperlong.h /usr/include/linux/posix_types.h \
+ /usr/include/linux/stddef.h \
+ /usr/include/x86_64-linux-gnu/asm/posix_types.h \
+ /usr/include/x86_64-linux-gnu/asm/posix_types_64.h \
+ /usr/include/asm-generic/posix_types.h \
+ /usr/include/x86_64-linux-gnu/bits/statx-generic.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_statx_timestamp.h \
+ /usr/include/x86_64-linux-gnu/bits/types/struct_statx.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_minixml.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_api.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_core.h \
+ /home/guderian/anaconda3/envs/cpp/include/gdal_priv.h \
+ /home/guderian/anaconda3/envs/cpp/include/gdal.h \
+ /home/guderian/anaconda3/envs/cpp/include/gdal_frmts.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_conv.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_string.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_multiproc.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_atomic_ops.h \
+ /usr/include/c++/11/iterator /usr/include/c++/11/bits/stream_iterator.h \
+ /usr/include/c++/11/map /usr/include/c++/11/bits/stl_tree.h \
+ /usr/include/c++/11/bits/stl_map.h \
+ /usr/include/c++/11/bits/stl_multimap.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_feature.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_featurestyle.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_geometry.h \
+ /home/guderian/anaconda3/envs/cpp/include/cpl_json.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_spatialref.h \
+ /home/guderian/anaconda3/envs/cpp/include/ogr_srs_api.h \
+ /usr/include/c++/11/cstddef /usr/include/c++/11/queue \
+ /usr/include/c++/11/deque /usr/include/c++/11/bits/stl_deque.h \
+ /usr/include/c++/11/bits/deque.tcc /usr/include/c++/11/bits/stl_queue.h \
+ /usr/include/c++/11/set /usr/include/c++/11/bits/stl_set.h \
  /usr/include/c++/11/bits/stl_multiset.h /usr/include/c++/11/regex \
- /usr/include/c++/11/bitset /usr/include/c++/11/iterator \
- /usr/include/c++/11/bits/stream_iterator.h /usr/include/c++/11/locale \
+ /usr/include/c++/11/bitset /usr/include/c++/11/locale \
  /usr/include/c++/11/bits/locale_facets_nonio.h /usr/include/c++/11/ctime \
  /usr/include/x86_64-linux-gnu/c++/11/bits/time_members.h \
  /usr/include/x86_64-linux-gnu/c++/11/bits/messages_members.h \
@@ -228,12 +292,7 @@ CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: \
  /usr/include/c++/11/bits/locale_facets_nonio.tcc \
  /usr/include/c++/11/bits/locale_conv.h /usr/include/c++/11/sstream \
  /usr/include/c++/11/bits/sstream.tcc /usr/include/c++/11/stack \
- /usr/include/c++/11/bits/stl_stack.h /usr/include/c++/11/map \
- /usr/include/c++/11/bits/stl_map.h \
- /usr/include/c++/11/bits/stl_multimap.h /usr/include/c++/11/cstring \
- /usr/include/string.h /usr/include/strings.h \
- /usr/include/x86_64-linux-gnu/bits/strings_fortified.h \
- /usr/include/x86_64-linux-gnu/bits/string_fortified.h \
+ /usr/include/c++/11/bits/stl_stack.h /usr/include/c++/11/cstring \
  /usr/include/c++/11/bits/regex_constants.h \
  /usr/include/c++/11/bits/regex_error.h \
  /usr/include/c++/11/bits/regex_automaton.h \
@@ -260,23 +319,13 @@ CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/cvdef.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/version.hpp \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/hal/interface.h \
- /usr/include/c++/11/cstddef \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/cv_cpu_dispatch.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/emmintrin.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/xmmintrin.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/mmintrin.h \
  /usr/lib/gcc/x86_64-linux-gnu/11/include/mm_malloc.h \
- /usr/include/c++/11/stdlib.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/base.hpp \
  /usr/include/c++/11/climits \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/limits.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/syslimits.h \
- /usr/include/limits.h /usr/include/x86_64-linux-gnu/bits/posix1_lim.h \
- /usr/include/x86_64-linux-gnu/bits/local_lim.h \
- /usr/include/linux/limits.h \
- /usr/include/x86_64-linux-gnu/bits/posix2_lim.h \
- /usr/include/x86_64-linux-gnu/bits/xopen_lim.h \
- /usr/include/x86_64-linux-gnu/bits/uio_lim.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/cvstd.hpp \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/cvstd_wrapper.hpp \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/core/neon_utils.hpp \
@@ -346,7 +395,6 @@ CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/flann/lsh_index.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/flann/lsh_table.h \
  /usr/include/c++/11/iomanip /usr/include/c++/11/bits/quoted_string.h \
- /usr/include/c++/11/math.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/flann/autotuned_index.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/flann/ground_truth.h \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/flann/index_testing.h \
@@ -395,51 +443,4 @@ CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o: \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/xfeatures2d.hpp \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/xfeatures2d/nonfree.hpp \
  /home/guderian/anaconda3/envs/cpp/include/opencv4/opencv2/xfeatures2d/cuda.hpp \
- /usr/include/x86_64-linux-gnu/sys/stat.h \
- /usr/include/x86_64-linux-gnu/bits/stat.h \
- /usr/include/x86_64-linux-gnu/bits/struct_stat.h \
- /usr/include/x86_64-linux-gnu/bits/statx.h /usr/include/linux/stat.h \
- /usr/include/linux/types.h /usr/include/x86_64-linux-gnu/asm/types.h \
- /usr/include/asm-generic/types.h /usr/include/asm-generic/int-ll64.h \
- /usr/include/x86_64-linux-gnu/asm/bitsperlong.h \
- /usr/include/asm-generic/bitsperlong.h /usr/include/linux/posix_types.h \
- /usr/include/linux/stddef.h \
- /usr/include/x86_64-linux-gnu/asm/posix_types.h \
- /usr/include/x86_64-linux-gnu/asm/posix_types_64.h \
- /usr/include/asm-generic/posix_types.h \
- /usr/include/x86_64-linux-gnu/bits/statx-generic.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_statx_timestamp.h \
- /usr/include/x86_64-linux-gnu/bits/types/struct_statx.h \
- /usr/include/unistd.h /usr/include/x86_64-linux-gnu/bits/posix_opt.h \
- /usr/include/x86_64-linux-gnu/bits/environments.h \
- /usr/include/x86_64-linux-gnu/bits/confname.h \
- /usr/include/x86_64-linux-gnu/bits/getopt_posix.h \
- /usr/include/x86_64-linux-gnu/bits/getopt_core.h \
- /usr/include/x86_64-linux-gnu/bits/unistd.h \
- /usr/include/x86_64-linux-gnu/bits/unistd_ext.h \
- /usr/include/linux/close_range.h \
- /home/guderian/anaconda3/envs/cpp/include/gdal_priv.h \
- /home/guderian/anaconda3/envs/cpp/include/gdal.h \
- /home/guderian/anaconda3/envs/cpp/include/gdal_version.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_port.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_config.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_error.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_progress.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_virtualmem.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_vsi.h \
- /usr/lib/gcc/x86_64-linux-gnu/11/include/stdbool.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_minixml.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_api.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_core.h \
- /home/guderian/anaconda3/envs/cpp/include/gdal_frmts.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_conv.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_string.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_multiproc.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_atomic_ops.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_feature.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_featurestyle.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_geometry.h \
- /home/guderian/anaconda3/envs/cpp/include/cpl_json.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_spatialref.h \
- /home/guderian/anaconda3/envs/cpp/include/ogr_srs_api.h \
  /home/guderian/anaconda3/envs/cpp/include/cpl_conv.h

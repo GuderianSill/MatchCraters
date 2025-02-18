@@ -1,0 +1,6 @@
+git init
+git add .
+git commit -m "2.17"
+git branch -M main
+git remote add origin git@github.com:GuderianSill/MatchCraters.git
+git push -u origin main

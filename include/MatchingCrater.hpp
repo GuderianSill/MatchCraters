@@ -3,6 +3,8 @@
 #include "crater.hpp"
 #include "kdtree.hpp"
 #include "getdata.hpp"
+#include "GDALTransformer.hpp"
+
 #include <unordered_map>
 #include <cmath>
 #include <queue>
@@ -27,7 +29,7 @@
 class MatchingCrater
 {
 private:        
-    //宏参数
+    //宏参数 
     double RANGE;
     double DOMAIN_FACTOR_RATIO;
     double DISTANCE_MAX_GAP;
@@ -36,12 +38,19 @@ private:
     double AREA_TOLERANCE_RATIO;
     double ASPECTRADIO_RADIO;
 
+    //文件路径
     std::string imagesPath;
+    std::string tifPath;
     std::string savePath;
     std::string tmp_savePath;
+
+    //配置文件
+    std::string configFile;
     bool matchedByRatio;
 
     struct keys{int id; double x; double y; double diameter;};
+
+    //用于中心位置存储领域坑
     struct NeighborInformation
     {
         double distance;
@@ -51,6 +60,8 @@ private:
 
         bool operator <(const NeighborInformation& other) const;
     };    
+
+    //用于存储每个图片中的埙石坑信息
     struct CraterImage    
     {
         std::string imageName;
@@ -58,7 +69,6 @@ private:
         int sumIds;
         std::vector<std::shared_ptr<Crater>> craters;      
         std::unique_ptr<KDTree> kdTree;
-        //std::unique_ptr<SegmentTree> segmentTree;
         std::unordered_map<std::shared_ptr<Crater>, std::vector<std::shared_ptr<NeighborInformation>>> neighborCraters;
         std::unordered_map<int, std::vector<std::shared_ptr<NeighborInformation>>> IdGetNeighborCraters;
     };
@@ -101,7 +111,7 @@ public:
     void test_showAllMatchingPoints();    
 
     static int keyNums;
-    friend void ExcelGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater);
+    friend void CSVGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater);
 };
 
 #endif // MATCHINGCRATER_H

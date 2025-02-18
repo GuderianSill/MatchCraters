@@ -8,6 +8,7 @@ set(CMAKE_DEPENDS_LANGUAGES
 
 # The set of dependency files which are needed:
 set(CMAKE_DEPENDS_DEPENDENCY_FILES
+  "/home/guderian/code/MatchCrater/src/GDALTransformer.cpp" "CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o" "gcc" "CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o.d"
   "/home/guderian/code/MatchCrater/src/MatchingCrater.cpp" "CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o" "gcc" "CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o.d"
   "/home/guderian/code/MatchCrater/src/crater.cpp" "CMakeFiles/MatchCrater.dir/src/crater.cpp.o" "gcc" "CMakeFiles/MatchCrater.dir/src/crater.cpp.o.d"
   "/home/guderian/code/MatchCrater/src/debug.cxx" "CMakeFiles/MatchCrater.dir/src/debug.cxx.o" "gcc" "CMakeFiles/MatchCrater.dir/src/debug.cxx.o.d"
