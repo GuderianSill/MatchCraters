@@ -19,18 +19,16 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2,
     GDALAllRegister();
 
     //配置参数, 读取配置文件
+    this->imagesPath = "images/";    
+    this->tifPath = "tif/";
     this->savePath = "saves/";
-    this->imagesPath = "images/";
+    this->csvPath = "csv/";
     this->matchedByRatio = true;
     this->configFile = "config.txt";    
-    this->tifPath = "tif/";
 
     std::ifstream config(configFile);
-    if (!config.is_open())
-    {
+    if (!config.is_open())    
         throw std::runtime_error("配置文件打开错误");
-        return;
-    }
 
     std::map<std::string, double> configMap;
     std::string line;
@@ -44,21 +42,34 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2,
             configMap[label] = value;
     }
 
-    this->RANGE = configMap["RANGE"];
+    this->DOMAIN_RANGE = configMap["DOMAIN_RANGE"];
     this->DOMAIN_FACTOR_RATIO = configMap["DOMAIN_FACTOR_RATIO"];
     this->DISTANCE_MAX_GAP = configMap["DISTANCE_MAX_GAP"];
     this->ANGLE_TOLERANCE = configMap["ANGLE_TOLERANCE"];
     this->DISTANCE_RATIO = configMap["DISTANCE_RATIO"];
     this->AREA_TOLERANCE_RATIO = configMap["AREA_TOLERANCE_RATIO"];
     this->ASPECTRADIO_RADIO = configMap["ASPECTRADIO_RADIO"];
+    this->SEARCH_RANGE = configMap["SEARCH_RANGE"];
 
     config.close();
+
+    // 初始化坐标转换器
+    std::string tifName1 = tifPath + name1 + ".tif";
+    std::string tifName2 = tifPath + name2 + ".tif";
+    GDALDataset* dataset1 = (GDALDataset*)GDALOpen(tifName1.c_str(), GA_ReadOnly); 
+    GDALDataset* dataset2 = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
+    if (dataset1 == nullptr || dataset2 == nullptr)    
+        throw std::runtime_error("无法打开TIFF文件");    
+    this->transformer1 = new GDALCoordinateTransformer(dataset1);
+    this->transformer2 = new GDALCoordinateTransformer(dataset2);            
+    GDALClose(dataset1);
+    GDALClose(dataset2);
 
     // 从CSV读取图像信息
     try
     {
         cout << "开始连接CSV文件" << endl;
-        CSVGet_crater_object(name1 + ".csv", name2 + ".csv", *this);
+        CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);
     }
     catch (const std::runtime_error& e)
     {
@@ -66,7 +77,31 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2,
         exit(1);
     }
 
-    std::cout << "陨石坑信息存储完成" << std::endl;
+    // 获取图像路径
+    std::string imgName1 = imagesPath + name1 + ".png";
+    std::string imgName2 = imagesPath + name2 + ".png";
+
+    auto readImageAndSumPixels = [](const std::string& imgName)
+    {
+        GDALDataset* Src = (GDALDataset*)GDALOpen(imgName.c_str(), GA_ReadOnly);
+        if (Src == nullptr) 
+            throw std::runtime_error("无法打开图像文件");
+        int width = Src->GetRasterXSize();
+        int height = Src->GetRasterYSize();
+        GDALRasterBand* poSrcBand = Src->GetRasterBand(1);            
+        std::pair<int, int> totalPixelValue;
+        totalPixelValue.first = width;
+        totalPixelValue.second = height;
+        GDALClose(Src);
+        return totalPixelValue;
+    };
+
+    this->pixelValues1 = readImageAndSumPixels(imgName1);
+    this->pixelValues2 = readImageAndSumPixels(imgName2);
+    std::cout << "图像信息读取完成" << std::endl;
+    getTotalMatchingPoints();
+
+    std::cout << "陨石坑信息存储完成" << std::endl;    
 
     // 输出影像信息
     for (auto& craterImage: CraterImages)
@@ -83,7 +118,8 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2,
 
 MatchingCrater::~MatchingCrater()
 {
-
+    delete transformer1;
+    delete transformer2;    
 }
 
 void MatchingCrater::runMatching()
@@ -138,7 +174,7 @@ void MatchingCrater::test_get_NeighborInformation()
             }
         }
         else
-            printf("周围%lf范围没有可匹配的坑\n", RANGE);
+            printf("周围%lf范围没有可匹配的坑\n", DOMAIN_RANGE);
     }
 }
 
@@ -300,9 +336,12 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
             }
         });
     }
+    
     for (auto& t: threads) t.join();
     for (auto& key: k1)
         printf("id:%d, x:%lf, y:%lf, diameter:%lf\n", key.id, key.x, key.y, key.diameter);
+
+    cout << "匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
     writeKeys(k1, k2, image1->imageId, image2->imageId);
     show_matched_image(k1, k2, image1->imageId, image2->imageId);
 }
@@ -344,6 +383,22 @@ std::string MatchingCrater::get_imageName(const std::string& imagePath)
     return imageName;
 }
 
+void MatchingCrater::getTotalMatchingPoints()
+{
+    for (auto& crater: CraterImages[0]->craters)
+    {
+        double geoX1, geoY1;
+        transformer1->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], geoX1, geoY1);
+        double pixelX2, pixelY2;
+        // 计算像素坐标
+        transformer2->geoToPixel(geoX1, geoY1, pixelX2, pixelY2);
+
+        if (pixelX2 >= 0 && pixelX2 < pixelValues2.first && pixelY2 >= 0 && pixelY2 < pixelValues2.second)
+        {
+            totalMatchingPoints++;
+        }
+    }
+}
 
 void MatchingCrater::build_dataStructure()
 {
@@ -362,7 +417,7 @@ void MatchingCrater::get_NeighborInformation()
     {
         for (auto& KDCrater: craterImage->craters)
         {
-            std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, RANGE);        
+            std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, DOMAIN_RANGE);        
             std::vector<std::shared_ptr<NeighborInformation>> neighborInformations;
             //获取邻域角度，距离信息
             for (auto neighbor: neighbors)
@@ -522,7 +577,15 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
                 > ASPECTRADIO_RADIO)
             continue;
         else
-            similarCraters.push_back(*it);
+        {
+            // 转换成地理坐标
+            double geoX1, geoY1, geoX2, geoY2;
+            transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
+            transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
+
+            if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
+                similarCraters.push_back(*it);
+        }
     }
     /*
     for (auto& i : similarCraters)
@@ -624,30 +687,6 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
 
         file1 << "IC\n" << "Crater Matched Points\n";
         file2 << "IC\n" << "Crater Matched Points\n";
-
-        // 获取图像路径
-        std::string imgName1 = imagesPath + get_imageName(CraterImages[imageId1]->imageName) + ".png";
-        std::string imgName2 = imagesPath + get_imageName(CraterImages[imageId2]->imageName) + ".png";
-
-        auto readImageAndSumPixels = [](const std::string& imgName)
-        {
-            GDALDataset* Src = (GDALDataset*)GDALOpen(imgName.c_str(), GA_ReadOnly);
-            if (Src == nullptr) {
-                std::cerr << "无法读取图片: " << imgName << std::endl;
-                exit(-1);
-            }
-            int width = Src->GetRasterXSize();
-            int height = Src->GetRasterYSize();
-            GDALRasterBand* poSrcBand = Src->GetRasterBand(1);            
-            std::pair<int, int> totalPixelValue;
-            totalPixelValue.first = width;
-            totalPixelValue.second = height;
-            GDALClose(Src);
-            return totalPixelValue;
-        };
-
-        auto pixelValues1 = readImageAndSumPixels(imgName1);
-        auto pixelValues2 = readImageAndSumPixels(imgName2);
 
         file1 << pixelValues1.first << "\n" << pixelValues1.second << std::endl;
         file2 << pixelValues2.first << "\n" << pixelValues2.second << std::endl;

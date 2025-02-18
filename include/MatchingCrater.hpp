@@ -30,23 +30,36 @@ class MatchingCrater
 {
 private:        
     //宏参数 
-    double RANGE;
+    double DOMAIN_RANGE;
     double DOMAIN_FACTOR_RATIO;
     double DISTANCE_MAX_GAP;
     double ANGLE_TOLERANCE;
     double DISTANCE_RATIO;
     double AREA_TOLERANCE_RATIO;
     double ASPECTRADIO_RADIO;
+    double SEARCH_RANGE;
 
     //文件路径
     std::string imagesPath;
     std::string tifPath;
     std::string savePath;
     std::string tmp_savePath;
+    std::string csvPath;
 
     //配置文件
     std::string configFile;
     bool matchedByRatio;
+
+    //图像尺寸
+    std::pair<double, double> pixelValues1;
+    std::pair<double, double> pixelValues2;
+
+    //坐标转换器
+    GDALCoordinateTransformer* transformer1;
+    GDALCoordinateTransformer* transformer2;
+
+    //所有能被匹配的埙石坑数目 
+    int totalMatchingPoints;
 
     struct keys{int id; double x; double y; double diameter;};
 
@@ -78,6 +91,7 @@ private:
 
     std::string get_imageName(const std::string& imagePath);
 
+    void getTotalMatchingPoints();
     void build_dataStructure();
     void get_NeighborInformation();
     cv::Point2f convertCoordinates(const cv::Point2f& originalCoord, const cv::Size& originalSize, const cv::Size& resizedSize);
@@ -90,6 +104,7 @@ private:
     void writeKeys(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
     void show_matched_image(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
 
+    //
     static bool CompareNeighborInformation(const std::shared_ptr<NeighborInformation>& a, const std::shared_ptr<NeighborInformation>& b);
     static bool CompareCratersByArea(const std::shared_ptr<Crater>& a, const std::shared_ptr<Crater>& b);   
 
@@ -99,7 +114,7 @@ private:
     };
 
 public:
-    //通过excel的构造
+    //通过CSV的构造
     MatchingCrater(const std::string name1, const std::string name2, bool isByExcel);
     ~MatchingCrater();
     void runMatching();
