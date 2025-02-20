@@ -40,7 +40,7 @@ private:
     double SEARCH_RANGE;
 
     //文件路径
-    std::string imagesPath;
+    ////std::string imagesPath;
     std::string tifPath;
     std::string savePath;
     std::string tmp_savePath;
@@ -50,11 +50,15 @@ private:
     std::string configFile;
     bool matchedByRatio;
 
-    //图像尺寸
-    std::pair<double, double> pixelValues1;
-    std::pair<double, double> pixelValues2;
+    // *图像信息
+    GDALDataset* dataset1;
+    GDALDataset* dataset2;
 
-    //坐标转换器
+    int Src1Width;
+    int Src1Height;
+    int Src2Width;
+    int Src2Height;
+
     GDALCoordinateTransformer* transformer1;
     GDALCoordinateTransformer* transformer2;
 
@@ -114,13 +118,12 @@ private:
     };
 
 public:
-    //通过CSV的构造
-    MatchingCrater(const std::string name1, const std::string name2, bool isByExcel);
+    MatchingCrater(const std::string name1, const std::string name2);
     ~MatchingCrater();
     void runMatching();
+    void get_keys();
 
-    //测试用
-    void test_keys();
+    //测试用    
     void test_get_NeighborInformation();
     void test_matching_pointProgram();
     void test_showAllMatchingPoints();    

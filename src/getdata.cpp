@@ -13,7 +13,7 @@ void CSVGet_crater_object(const std::string name1, const std::string name2, Matc
     std::ifstream file2(name2);
     if (!file1.is_open() || !file2.is_open())
     {
-        throw std::runtime_error("无法打开文件");
+        throw std::runtime_error("无法打开CSV文件");
         return;
     }
     matchingCrater.CraterImages.push_back(std::unique_ptr<MatchingCrater::CraterImage>(new MatchingCrater::CraterImage));
@@ -53,7 +53,7 @@ void CSVGet_crater_object(const std::string name1, const std::string name2, Matc
 
     while (std::getline(file2, line))
     {
-        cout << line << endl;
+        ////cout << line << endl;
         std::istringstream iss(line);
         std::string token;
         Data data;

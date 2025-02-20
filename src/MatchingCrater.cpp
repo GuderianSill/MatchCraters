@@ -14,17 +14,17 @@ int MatchingCrater::keyNums = 1;
  *
  * @return 无
  */
-MatchingCrater::MatchingCrater(const std::string name1, const std::string name2, bool isByExcel)
+MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
 {
     GDALAllRegister();
 
     //配置参数, 读取配置文件
-    this->imagesPath = "images/";    
+    //// this->imagesPath = "images/";
     this->tifPath = "tif/";
     this->savePath = "saves/";
     this->csvPath = "csv/";
     this->matchedByRatio = true;
-    this->configFile = "config.txt";    
+    this->configFile = "config.txt";
 
     std::ifstream config(configFile);
     if (!config.is_open())    
@@ -53,67 +53,34 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2,
 
     config.close();
 
-    // 初始化坐标转换器
+    // 初始化图像信息
     std::string tifName1 = tifPath + name1 + ".tif";
     std::string tifName2 = tifPath + name2 + ".tif";
-    GDALDataset* dataset1 = (GDALDataset*)GDALOpen(tifName1.c_str(), GA_ReadOnly); 
-    GDALDataset* dataset2 = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
+
+    dataset1 = (GDALDataset*)GDALOpen(tifName1.c_str(), GA_ReadOnly); 
+    dataset2 = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
+
     if (dataset1 == nullptr || dataset2 == nullptr)    
-        throw std::runtime_error("无法打开TIFF文件");    
+        throw std::runtime_error("无法打开TIFF文件");
+
     this->transformer1 = new GDALCoordinateTransformer(dataset1);
-    this->transformer2 = new GDALCoordinateTransformer(dataset2);            
-    GDALClose(dataset1);
-    GDALClose(dataset2);
+    this->transformer2 = new GDALCoordinateTransformer(dataset2);
+
+    Src1Height = dataset1->GetRasterYSize();
+    Src1Width = dataset1->GetRasterXSize();
+    Src2Height = dataset2->GetRasterYSize();
+    Src2Width = dataset2->GetRasterXSize();
+
+    std::cout << "图像信息读取完成" << std::endl;    
 
     // 从CSV读取图像信息
-    try
-    {
-        cout << "开始连接CSV文件" << endl;
-        CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);
-    }
-    catch (const std::runtime_error& e)
-    {
-        std::cerr << e.what() << endl;
-        exit(1);
-    }
-
-    // 获取图像路径
-    std::string imgName1 = imagesPath + name1 + ".png";
-    std::string imgName2 = imagesPath + name2 + ".png";
-
-    auto readImageAndSumPixels = [](const std::string& imgName)
-    {
-        GDALDataset* Src = (GDALDataset*)GDALOpen(imgName.c_str(), GA_ReadOnly);
-        if (Src == nullptr) 
-            throw std::runtime_error("无法打开图像文件");
-        int width = Src->GetRasterXSize();
-        int height = Src->GetRasterYSize();
-        GDALRasterBand* poSrcBand = Src->GetRasterBand(1);            
-        std::pair<int, int> totalPixelValue;
-        totalPixelValue.first = width;
-        totalPixelValue.second = height;
-        GDALClose(Src);
-        return totalPixelValue;
-    };
-
-    this->pixelValues1 = readImageAndSumPixels(imgName1);
-    this->pixelValues2 = readImageAndSumPixels(imgName2);
-    std::cout << "图像信息读取完成" << std::endl;
+    CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);    
     getTotalMatchingPoints();
 
     std::cout << "陨石坑信息存储完成" << std::endl;    
 
-    // 输出影像信息
-    for (auto& craterImage: CraterImages)
-    {
+    for (auto& craterImage: CraterImages)    
         craterImage->imageId = craterImage->craters[0]->get_image_id();
-        sort(craterImage->craters.begin(), craterImage->craters.end(), CompareCratersByArea);
-        printf("排序后的图片%d的陨石坑信息\n", craterImage->imageId);
-        for (auto& crater: craterImage->craters)
-        {
-            printf("image_id:%d, 面积:%lf, id:%d, x:%lf, y:%lf\n", crater->get_image_id(), crater->get_area(), crater->get_id(), crater->get_coordinates()[0], crater->get_coordinates()[1]);
-        }
-    }    
 }
 
 MatchingCrater::~MatchingCrater()
@@ -129,14 +96,10 @@ void MatchingCrater::runMatching()
     get_NeighborInformation();
 }
 
-void MatchingCrater::test_keys()
-{    
-    int imageId1 = 0;
-    for (int imageId2 = 1; imageId2 <= ImagesNum - 1; imageId2++)
-    {
-        show_keys(CraterImages[imageId1], CraterImages[imageId2]);
-    }
-    cout << "exit" << endl;
+void MatchingCrater::get_keys()
+{
+    show_keys(CraterImages[0], CraterImages[1]);
+    cout << "get keys success" << endl;
 }
 
 void MatchingCrater::test_get_NeighborInformation()
@@ -338,8 +301,6 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     }
     
     for (auto& t: threads) t.join();
-    for (auto& key: k1)
-        printf("id:%d, x:%lf, y:%lf, diameter:%lf\n", key.id, key.x, key.y, key.diameter);
 
     cout << "匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
     writeKeys(k1, k2, image1->imageId, image2->imageId);
@@ -393,7 +354,7 @@ void MatchingCrater::getTotalMatchingPoints()
         // 计算像素坐标
         transformer2->geoToPixel(geoX1, geoY1, pixelX2, pixelY2);
 
-        if (pixelX2 >= 0 && pixelX2 < pixelValues2.first && pixelY2 >= 0 && pixelY2 < pixelValues2.second)
+        if (pixelX2 >= 0 && pixelX2 < Src2Width && pixelY2 >= 0 && pixelY2 < Src2Height)
         {
             totalMatchingPoints++;
         }
@@ -464,7 +425,11 @@ cv::Mat MatchingCrater::GDALBlockToMat(GDALRasterBand *band, int xoff, int yoff,
         return cv::Mat();
     }
 
-    band->RasterIO(GF_Read, xoff, yoff, width, height, mat.data, width, height, dataType, 0, 0);
+    if (band->RasterIO(GF_Read, xoff, yoff, width, height, mat.data, width, height, dataType, 0, 0) != CE_None)
+    {
+        std::cerr << "RasterIO failed" << std::endl;
+        return cv::Mat();
+    }
     return mat;
 }
 
@@ -628,10 +593,8 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
 
     int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 
-    if (status == 0) cout << "文件夹创建成功" << endl;
-    else        cout << "文件夹已存在" << endl;
-
-    cout << name1 << " " << name2 << endl;
+    if (status == 0) cout << "key文件夹创建成功" << endl;
+    else        cout << "key文件夹已存在" << endl;
 
     tmp_savePath = folderName;
 
@@ -669,32 +632,25 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
         auto fileName1 = folderName + name1 + "_" + name2 + "_L_" + diameterLabel + ".key";
         auto fileName2 = folderName + name1 + "_" + name2 + "_R_" + diameterLabel + ".key";
 
-        std::cout << fileName1 << " " << fileName2 << std::endl;
-
         std::ofstream file1(fileName1);
-        if (!file1.is_open())
-        {
-            std::cerr << "open file1 error" << std::endl;
-            exit(1);
-        }
-
         std::ofstream file2(fileName2);
-        if (!file2.is_open())
+
+        if (!file1.is_open() || !file2.is_open())
         {
-            std::cerr << "open file2 error" << std::endl;
+            std::cerr << "open key file error" << std::endl;
             exit(1);
         }
 
         file1 << "IC\n" << "Crater Matched Points\n";
         file2 << "IC\n" << "Crater Matched Points\n";
 
-        file1 << pixelValues1.first << "\n" << pixelValues1.second << std::endl;
-        file2 << pixelValues2.first << "\n" << pixelValues2.second << std::endl;
+        file1 << Src1Width << "\n" << Src1Height << std::endl;
+        file2 << Src2Width << "\n" << Src2Height << std::endl;
 
         file1 << filteredKey1s[i].size() << std::endl;
         for (const auto& data: filteredKey1s[i]) 
         {
-            file1 << index++ << " " << data.x << " " << data.y << " " << data.diameter << std::endl;
+            file1 << index++ << " " << data.x << " " << data.y << std::endl;
         }
         file1.close();
 
@@ -702,7 +658,7 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
         file2 << filteredKey2s[i].size() << std::endl;
         for (const auto& data: filteredKey2s[i]) 
         {
-            file2 << index++ << " " << data.x << " " << data.y << " " << data.diameter << std::endl;
+            file2 << index++ << " " << data.x << " " << data.y << std::endl;
         }
         file2.close();
     }
@@ -715,27 +671,17 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
         points1.push_back({cv::Point2f(i.x, i.y)});
     for (auto& i: key2)
         points2.push_back({cv::Point2f(i.x, i.y)});
-    std::string imgName1 = imagesPath + get_imageName(CraterImages[imageId1]->imageName) + ".png";
-    std::string imgName2 = imagesPath + get_imageName(CraterImages[imageId2]->imageName) + ".png";
 
+    GDALRasterBand* poSrcBand1 = dataset1->GetRasterBand(1);
+    GDALRasterBand* poSrcBand2 = dataset2->GetRasterBand(1);
 
-    GDALDataset* Src1 = (GDALDataset*)GDALOpen(imgName1.c_str(), GA_ReadOnly);
-    GDALDataset* Src2 = (GDALDataset*)GDALOpen(imgName2.c_str(), GA_ReadOnly);
-    if (Src1 == nullptr || Src2 == nullptr)
-    {
-        std::cerr << "无法读取图片" << endl;
-        exit(-1);
-    }
-    long long Src1Width = Src1->GetRasterXSize();
-    long long Src1Height = Src1->GetRasterYSize();
-    long long Src2Width = Src2->GetRasterXSize();
-    long long Src2Height = Src2->GetRasterYSize();
-
-    GDALRasterBand* poSrcBand1 = Src1->GetRasterBand(1);
-    GDALRasterBand* poSrcBand2 = Src2->GetRasterBand(1);
     cv::Mat img1 = GDALBlockToMat(poSrcBand1, 0, 0, Src1Width, Src1Height);
     cv::Mat img2 = GDALBlockToMat(poSrcBand2, 0, 0, Src2Width, Src2Height);
-    cout << "Mat success" << endl;    
+    cout << "Mat success" << endl;
+
+    // TODO 防止内存不足提前释放
+    GDALClose(dataset1);
+    GDALClose(dataset2);
 
     cv::Size originalSize1 = img1.size();
     cv::Size originalSize2 = img2.size();
@@ -743,14 +689,14 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     cv::Size resizedSize1 = img1.size();
     cv::Size resizedSize2 = img2.size();
 
-    while (img1.cols * img1.rows > 1000000)
+    while (img1.cols * img1.rows > 2000000)
     {
         cv::Mat resized_img;
         cv::resize(img1, resized_img, cv::Size(img1.cols / 2, img1.rows / 2));
         img1 = resized_img;
         resizedSize1 = img1.size();
     }
-    while (img2.cols * img2.rows > 1000000)
+    while (img2.cols * img2.rows > 2000000)
     {
         cv::Mat resized_img;
         cv::resize(img2, resized_img, cv::Size(img2.cols / 2, img2.rows / 2));
@@ -770,6 +716,9 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     Channel3img1.copyTo(mergedImg(cv::Rect(0, 0, Channel3img1.cols, Channel3img1.rows)));
     Channel3img2.copyTo(mergedImg(cv::Rect(Channel3img1.cols, 0, Channel3img2.cols, Channel3img2.rows)));
 
+    // 创建一个与原始图像相同大小和类型的临时图像
+    cv::Mat tempImage = mergedImg.clone();
+
     // 在合并图像上绘制对应点之间的连线
     for (size_t i = 0; i < points1.size(); ++i)
     {
@@ -781,14 +730,22 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
 
         uchar alpha = 1;
         cv::Scalar color = cv::Scalar(b, g, r, alpha);
-        cv::line(mergedImg, p1, p2, color, 1);
+        //cv::line(mergedImg, p1, p2, color, 1);
+        // 在临时图像上绘制直线
+        cv::line(tempImage, p1, p2, color, 1, cv::LINE_AA);
     }
+
+    // 定义透明度，范围从 0 到 1，值越小越透明
+    double alpha = 0.2;
+
+    // 将临时图像与原始图像进行混合
+    cv::addWeighted(tempImage, alpha, mergedImg, 1 - alpha, 0, mergedImg);
 
     std::string saveName = get_imageName(CraterImages[imageId1]->imageName) + " and " + get_imageName(CraterImages[imageId2]->imageName) + ".png";
     // 显示合并后的图像
     cv::imshow(saveName, mergedImg);
-    cv::imwrite(tmp_savePath + saveName, mergedImg);
-    cv::waitKey(1000);
+    cv::imwrite(tmp_savePath + saveName, mergedImg);    
+    cv::waitKey(0);
 }
 
 
