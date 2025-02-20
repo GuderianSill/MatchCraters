@@ -1,3 +1,0 @@
-/home/guderian/code/MatchCrater/build/CMakeFiles/MatchCrater.dir
-/home/guderian/code/MatchCrater/build/CMakeFiles/edit_cache.dir
-/home/guderian/code/MatchCrater/build/CMakeFiles/rebuild_cache.dir
