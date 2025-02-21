@@ -2,6 +2,51 @@
 using std::cout;
 using std::endl;
 
+// 实时检查内存占用情况
+void checkMemoryUsage() 
+{
+    while (!shouldExit && !normalExit) 
+    {
+        std::ifstream meminfo("/proc/meminfo");
+        if (!meminfo.is_open()) 
+        {
+            std::cerr << "Failed to open /proc/meminfo" << std::endl;
+            shouldExit = true;
+            break;
+        }
+
+        size_t totalMemory = 0;
+        size_t availableMemory = 0;
+        std::string line;
+        while (std::getline(meminfo, line)) {
+            if (line.find("MemTotal:") != std::string::npos) 
+            {
+                sscanf(line.c_str(), "MemTotal: %lu kB", &totalMemory);
+            } else if (line.find("MemAvailable:") != std::string::npos) {
+                sscanf(line.c_str(), "MemAvailable: %lu kB", &availableMemory);
+            }
+        }
+        meminfo.close();
+
+        if (totalMemory > 0) {
+            // 计算内存占用百分比
+            double memoryUsage = 100.0 - (static_cast<double>(availableMemory) / totalMemory * 100);
+
+            if (memoryUsage >= 95) 
+            {
+                std::cerr << "Memory usage reached 95%. Exiting program." << std::endl;
+                shouldExit = true;
+            }
+        }
+
+        // 每隔 0.1 秒检查一次
+        //std::this_thread::sleep_for(std::chrono::seconds(1));
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+    if (shouldExit) 
+        exit(1); // 退出程序
+}
+
 void CSVGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater)
 {
     struct Data

@@ -1,7 +1,7 @@
 #cmake version
 cmake_minimum_required(VERSION 3.15)
 
-project(MatchCrater VERSION 1.0 LANGUAGES CXX)
+project(MatchCrater VERSION 1.2.2 LANGUAGES CXX)
 
 #set the c++ standard
 set(CMAKE_CXX_STANDARD 17)

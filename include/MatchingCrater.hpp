@@ -99,7 +99,7 @@ private:
     void build_dataStructure();
     void get_NeighborInformation();
     cv::Point2f convertCoordinates(const cv::Point2f& originalCoord, const cv::Size& originalSize, const cv::Size& resizedSize);
-    cv::Mat GDALBlockToMat(GDALRasterBand* band, int xoff, int yoff, int width, int height);
+    cv::Mat GDALBlockToMat(GDALRasterBand *band, int xoff, int yoff, int width, int height);
 
     std::pair<bool, double> judge_matchingPoint(const std::vector<std::shared_ptr<NeighborInformation>>& a, const std::vector<std::shared_ptr<NeighborInformation>>& b) const;
     std::vector<std::pair<std::shared_ptr<Crater>, double>> matching_pointProgram(const std::shared_ptr<Crater>& crater, const int imageId);

@@ -4,6 +4,7 @@ using std::cout;
 using std::endl;
 
 int MatchingCrater::keyNums = 1;
+bool normalExit = false;
 
 /**
  * @brief 构造函数
@@ -86,7 +87,8 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
 MatchingCrater::~MatchingCrater()
 {
     delete transformer1;
-    delete transformer2;    
+    delete transformer2;
+    normalExit = true;
 }
 
 void MatchingCrater::runMatching()
@@ -403,8 +405,8 @@ cv::Point2f MatchingCrater::convertCoordinates(const cv::Point2f &originalCoord,
 {
     double scaleX = static_cast<double>(resizedSize.width) / originalSize.width;
     double scaleY = static_cast<double>(resizedSize.height) / originalSize.height;
-    int newX = static_cast<int>(originalCoord.x * scaleX);
-    int newY = static_cast<int>(originalCoord.y * scaleY);
+    double newX = static_cast<double>(originalCoord.x * scaleX);
+    double newY = static_cast<double>(originalCoord.y * scaleY);
     return cv::Point2f(newX, newY);
 }
 
@@ -712,6 +714,40 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     cv::cvtColor(img2, Channel3img2, cv::COLOR_GRAY2BGR);
     cv::Mat mergedImg(newHeight, newWidth, Channel3img1.type(), cv::Scalar(0, 0, 0));
 
+    // !
+    /*
+    std::vector<cv::KeyPoint> keypoints1, keypoints2;
+    for (const auto& point : points1) {
+        cv::Point2f p = convertCoordinates(point, originalSize1, resizedSize1);
+        keypoints1.emplace_back(p, 1.0);
+    }
+
+    for (const auto& point : points2) {
+        cv::Point2f p = convertCoordinates(point, originalSize2, resizedSize2);
+        keypoints2.emplace_back(p, 1.0);
+    }
+
+    // 创建 DMatch 向量
+    std::vector<cv::DMatch> matches;
+    for (size_t i = 0; i < points1.size(); ++i) {
+        matches.emplace_back(static_cast<int>(i), static_cast<int>(i), 0.0);
+    }
+
+    // 绘制匹配结果
+    cv::Mat img_matches;
+    drawMatches(img1, keypoints1, img2, keypoints2,
+                matches, img_matches, cv::Scalar::all(-1),
+                cv::Scalar::all(-1), std::vector<char>(),
+                //cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS
+                cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS
+                );
+
+    // 显示匹配结果
+    cv::imshow("Matches", img_matches);
+    cv::waitKey(0);
+    */
+    // !
+
     // 将img1和img2复制到合并图像中
     Channel3img1.copyTo(mergedImg(cv::Rect(0, 0, Channel3img1.cols, Channel3img1.rows)));
     Channel3img2.copyTo(mergedImg(cv::Rect(Channel3img1.cols, 0, Channel3img2.cols, Channel3img2.rows)));
@@ -745,7 +781,8 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     // 显示合并后的图像
     cv::imshow(saveName, mergedImg);
     cv::imwrite(tmp_savePath + saveName, mergedImg);    
-    cv::waitKey(0);
+    cv::waitKey(10);
+    cv::destroyWindow(saveName);
 }
 
 
