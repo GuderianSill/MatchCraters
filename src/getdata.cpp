@@ -32,10 +32,10 @@ void checkMemoryUsage()
             // 计算内存占用百分比
             double memoryUsage = 100.0 - (static_cast<double>(availableMemory) / totalMemory * 100);
 
-            if (memoryUsage >= 95) 
+            if (memoryUsage >= 92) 
             {
-                std::cerr << "Memory usage reached 95%. Exiting program." << std::endl;
-                shouldExit = true;
+                std::cerr << "Memory usage reached 92%. Exiting program." << std::endl;
+                exit(1);                
             }
         }
 
@@ -43,8 +43,6 @@ void checkMemoryUsage()
         //std::this_thread::sleep_for(std::chrono::seconds(1));
         std::this_thread::sleep_for(std::chrono::milliseconds(100));
     }
-    if (shouldExit) 
-        exit(1); // 退出程序
 }
 
 void CSVGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater)
@@ -58,7 +56,7 @@ void CSVGet_crater_object(const std::string name1, const std::string name2, Matc
     std::ifstream file2(name2);
     if (!file1.is_open() || !file2.is_open())
     {
-        throw std::runtime_error("无法打开CSV文件");
+        throw std::runtime_error("\n无法打开CSV文件");
         return;
     }
     matchingCrater.CraterImages.push_back(std::unique_ptr<MatchingCrater::CraterImage>(new MatchingCrater::CraterImage));

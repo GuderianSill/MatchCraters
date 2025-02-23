@@ -53,7 +53,7 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
     this->SEARCH_RANGE = configMap["SEARCH_RANGE"];
 
     config.close();
-
+    
     // 初始化图像信息
     std::string tifName1 = tifPath + name1 + ".tif";
     std::string tifName2 = tifPath + name2 + ".tif";
@@ -72,16 +72,17 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
     Src2Height = dataset2->GetRasterYSize();
     Src2Width = dataset2->GetRasterXSize();
 
-    std::cout << "图像信息读取完成" << std::endl;    
+    std::cout << "图像信息读取完成" << " ";    
 
     // 从CSV读取图像信息
-    CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);    
-    getTotalMatchingPoints();
+    CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);        
 
     std::cout << "陨石坑信息存储完成" << std::endl;    
 
     for (auto& craterImage: CraterImages)    
         craterImage->imageId = craterImage->craters[0]->get_image_id();
+
+    getTotalMatchingPoints();        
 }
 
 MatchingCrater::~MatchingCrater()
@@ -92,10 +93,10 @@ MatchingCrater::~MatchingCrater()
 }
 
 void MatchingCrater::runMatching()
-{
-    std::cout << "开始匹配" << std::endl;
+{    
     build_dataStructure();
     get_NeighborInformation();
+    std::cout << "开始匹配" << std::endl;
 }
 
 void MatchingCrater::get_keys()
@@ -250,7 +251,7 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     std::vector<std::thread> threads;
     std::atomic<int> currentId{0};
 
-    cout << "sumPoints: " << image1->sumIds << endl;
+    //cout << "sumPoints: " << image1->sumIds << endl;
 
     for (int i = 0; i < NUM_THREADS; i++)
     {
@@ -294,9 +295,11 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
                 //同步输出
                 {
                     std::lock_guard<std::mutex> lock(k_mutex);
-                    cout << originCrater[0]->crater->get_id()
-                         << "匹配完成\n"
-                         << "matched" << matchedPoints.load() << endl;
+                    double progress = static_cast<double>(currentId.load() < image1->sumIds ? currentId.load() : image1->sumIds) / image1->sumIds * 100;
+                    // cout << originCrater[0]->crater->get_id()
+                    //      << "匹配完成\n"
+                    //      << "matched" << matchedPoints.load() << endl;
+                    cout << "\r当前进度：" << std::fixed << std::setprecision(2) << progress << "%" << std::flush;
                 }
             }
         });
@@ -304,7 +307,7 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     
     for (auto& t: threads) t.join();
 
-    cout << "匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
+    cout << "\n匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
     writeKeys(k1, k2, image1->imageId, image2->imageId);
     show_matched_image(k1, k2, image1->imageId, image2->imageId);
 }
@@ -361,6 +364,7 @@ void MatchingCrater::getTotalMatchingPoints()
             totalMatchingPoints++;
         }
     }
+    cout << "总可能匹配点数：" << totalMatchingPoints << endl;
 }
 
 void MatchingCrater::build_dataStructure()
@@ -369,13 +373,12 @@ void MatchingCrater::build_dataStructure()
     {      
         craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->craters));
     }    
-    cout << "数据结构构建完成" << endl;
+    cout << "数据结构构建完成" << " ";
 }
 
 void MatchingCrater::get_NeighborInformation()
 {
-    //cout << "start to get neighborInformations" << endl;
-    cout << "开始获取邻域信息" << endl;
+    //cout << "start to get neighborInformations" << endl;    
     for (auto& craterImage: CraterImages)
     {
         for (auto& KDCrater: craterImage->craters)
@@ -399,6 +402,7 @@ void MatchingCrater::get_NeighborInformation()
             craterImage->IdGetNeighborCraters[KDCrater->get_id()] = neighborInformations;
         }
     }
+    cout << "邻域信息获取完毕" << endl;
 }
 
 cv::Point2f MatchingCrater::convertCoordinates(const cv::Point2f &originalCoord, const cv::Size &originalSize, const cv::Size &resizedSize)
@@ -668,22 +672,42 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
 
 void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
 {
-    std::vector<cv::Point2f> points1, points2;
-    for (auto& i: key1)
-        points1.push_back({cv::Point2f(i.x, i.y)});
-    for (auto& i: key2)
-        points2.push_back({cv::Point2f(i.x, i.y)});
+
+    auto convertGDALBlockToMat = [this](GDALRasterBand* poSrcBand, int width, int height, cv::Mat& img) {img = this->GDALBlockToMat(poSrcBand, 0, 0, width, height);};
+    
+    auto convertKeypointsToPoints = [this](const std::vector<MatchingCrater::keys>& key, std::vector<cv::Point2f>& points) 
+    {
+        for (auto& i: key) 
+            points.push_back(cv::Point2f(i.x, i.y));
+    };
+
+    std::vector<cv::Point2f> points1, points2; 
 
     GDALRasterBand* poSrcBand1 = dataset1->GetRasterBand(1);
     GDALRasterBand* poSrcBand2 = dataset2->GetRasterBand(1);
 
-    cv::Mat img1 = GDALBlockToMat(poSrcBand1, 0, 0, Src1Width, Src1Height);
-    cv::Mat img2 = GDALBlockToMat(poSrcBand2, 0, 0, Src2Width, Src2Height);
+    cv::Mat img1;
+    cv::Mat img2;
+
+    // 多线程
+    std::thread ToPoint2f1(convertKeypointsToPoints, std::ref(key1), std::ref(points1));
+    std::thread ToPoint2f2(convertKeypointsToPoints, std::ref(key2), std::ref(points2));
+    
+    std::thread ToMat1(convertGDALBlockToMat, poSrcBand1, Src1Width, Src1Height, std::ref(img1));
+    std::thread ToMat2(convertGDALBlockToMat, poSrcBand2, Src2Width, Src2Height, std::ref(img2));  
+
+    ToPoint2f1.join();
+    ToPoint2f2.join();
+    ToMat1.join();        
+    ToMat2.join();          
+    
+    // TODO 防止内存不足提前释放    
+    GDALClose(dataset1);    
+    GDALClose(dataset2);
+    
     cout << "Mat success" << endl;
 
-    // TODO 防止内存不足提前释放
-    GDALClose(dataset1);
-    GDALClose(dataset2);
+    
 
     cv::Size originalSize1 = img1.size();
     cv::Size originalSize2 = img2.size();
@@ -777,7 +801,7 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     // 将临时图像与原始图像进行混合
     cv::addWeighted(tempImage, alpha, mergedImg, 1 - alpha, 0, mergedImg);
 
-    std::string saveName = get_imageName(CraterImages[imageId1]->imageName) + " and " + get_imageName(CraterImages[imageId2]->imageName) + ".png";
+    std::string saveName = get_imageName(CraterImages[imageId1]->imageName) + "_and_" + get_imageName(CraterImages[imageId2]->imageName) + ".png";
     // 显示合并后的图像
     cv::imshow(saveName, mergedImg);
     cv::imwrite(tmp_savePath + saveName, mergedImg);    

@@ -28,7 +28,7 @@
 
 class MatchingCrater
 {
-private:        
+private:         
     //宏参数 
     double DOMAIN_RANGE;
     double DOMAIN_FACTOR_RATIO;
