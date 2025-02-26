@@ -225,8 +225,12 @@ MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_xfeatures2d.so.4.10
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_xobjdetect.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_xphoto.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libgdal.so
+MatchCrater: /home/guderian/anaconda3/lib/libboost_program_options.so.1.82.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_shape.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_highgui.so.4.10.0
+MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libQt5Widgets.so.5.15.2
+MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libQt5Gui.so.5.15.2
+MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libQt5Core.so.5.15.2
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_datasets.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_plot.so.4.10.0
 MatchCrater: /home/guderian/anaconda3/envs/cpp/lib/libopencv_text.so.4.10.0

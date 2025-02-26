@@ -1,4 +1,6 @@
 #include "kdtree.hpp"
+#include <thread>
+#include <mutex>
 
 using std::cout;
 using std::endl;
@@ -10,11 +12,8 @@ KDTree::KDNode::KDNode(std::shared_ptr<Crater> p, int d) : point(std::move(p)), 
 // KDTree 构造函数的实现
 KDTree::KDTree(std::vector<std::shared_ptr<Crater>>& craters)
 {
-    //cout << "开始KD树构造" << endl;
     k = craters[0]->get_coordinates().size();
-    //cout << k << endl;
     root = buildKDTree(craters);
-    //cout << "KD树构造完成" << endl;
 }
 
 
@@ -43,6 +42,25 @@ std::unique_ptr<KDTree::KDNode> KDTree::buildKDTree(std::vector<std::shared_ptr<
     node->left = buildKDTree(leftPoints, depth + 1);
     node->right = buildKDTree(rightPoints, depth + 1);
     return node;
+    // std::thread leftThread;
+    // std::unique_ptr<KDTree::KDNode> leftSubtree;
+    // if (!leftPoints.empty()) 
+    // {
+    //     leftThread = std::thread([this, &leftSubtree, &leftPoints, depth]() 
+    //     {
+    //         leftSubtree = this->buildKDTree(leftPoints, depth + 1);
+    //     });
+    // }
+    // std::unique_ptr<KDNode> rightSubtree = buildKDTree(rightPoints, depth + 1);
+
+    // if (leftThread.joinable()) 
+    // {
+    //     leftThread.join();
+    // }
+
+    // node->left = std::move(leftSubtree);
+    // node->right = std::move(rightSubtree);
+    // return node;
 }
 
 
@@ -66,3 +84,56 @@ void KDTree::rangeSearch(const std::unique_ptr<KDNode>& node, const Crater& targ
         rangeSearch(node->right, target, range, result);
     }
 }
+
+// 范围搜索的函数实现
+// void KDTree::rangeSearch(const std::unique_ptr<KDNode>& node, const Crater& target,
+//                          double range, std::vector<std::shared_ptr<Crater>>& result) const
+// {
+//     if (node == nullptr) return;
+//     double dist = Crater::euclideanDistance(*(node->point), target);
+//     if (dist <= range)
+//     {
+//         std::lock_guard<std::mutex> lock(resultMutex);
+//         result.push_back(node->point);
+//     }
+//     int axis = node->depth % k;
+//     if ((target.get_coordinates()[axis] - range) <= node->point->get_coordinates()[axis])
+//     {
+//         rangeSearch(node->left, target, range, result);
+//     }
+//     if ((target.get_coordinates()[axis] + range) >= node->point->get_coordinates()[axis])
+//     {
+//         rangeSearch(node->right, target, range, result);
+//     }
+// }
+
+// // 并行范围搜索的函数实现
+// void KDTree::parallelRangeSearch(const std::unique_ptr<KDNode>& node, const Crater& target,
+//                                  double range, std::vector<std::shared_ptr<Crater>>& result) const
+// {
+//     if (node == nullptr) return;
+
+//     std::thread leftThread;
+//     std::vector<std::shared_ptr<Crater>> leftResult;
+//     int axis = node->depth % k;
+//     if ((target.get_coordinates()[axis] - range) <= node->point->get_coordinates()[axis]) {
+//         leftThread = std::thread([this, &node, &target, range, &leftResult]() {
+//             rangeSearch(node->left, target, range, leftResult);
+//         });
+//     }
+
+//     std::vector<std::shared_ptr<Crater>> rightResult;
+//     if ((target.get_coordinates()[axis] + range) >= node->point->get_coordinates()[axis]) {
+//         rangeSearch(node->right, target, range, rightResult);
+//     }
+
+//     if (leftThread.joinable()) {
+//         leftThread.join();
+//     }
+
+//     {
+//         std::lock_guard<std::mutex> lock(resultMutex);
+//         result.insert(result.end(), leftResult.begin(), leftResult.end());
+//         result.insert(result.end(), rightResult.begin(), rightResult.end());
+//     }
+// }

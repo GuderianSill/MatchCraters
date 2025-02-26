@@ -3,6 +3,8 @@
 
 #include <vector>
 #include <memory>
+#include <mutex>
+#include <thread>
 #include "crater.hpp"
 #include <algorithm>
 #include <iostream>
@@ -22,20 +24,19 @@ private:
         std::unique_ptr<KDNode> right;
         int depth;
 
-
         // 构造函数，初始化 KDNode 对象
         KDNode(std::shared_ptr<Crater> p, int d);
     };
 
-
     std::unique_ptr<KDNode> root;
     int k;
+    mutable std::mutex resultMutex;
 
-
-    // 递归构建 K-D 树的私有函数
+    // 递归构建 K-D 树
     std::unique_ptr<KDNode> buildKDTree(std::vector<std::shared_ptr<Crater>>& points, int depth = 0);
-
-
+    // 并行范围搜索的私有函数，查找范围内的邻居
+    void parallelRangeSearch(const std::unique_ptr<KDNode>& node, const Crater& target,
+                             double range, std::vector<std::shared_ptr<Crater>>& result) const;
     // 范围搜索的私有函数，查找范围内的邻居
     void rangeSearch(const std::unique_ptr<KDNode>& node, const Crater& target, double range, std::vector<std::shared_ptr<Crater>>& result) const;
 

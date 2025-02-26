@@ -14,6 +14,14 @@
 # EXTERNAL cache entries
 ########################
 
+//The directory containing a CMake configuration file for Boost.
+Boost_DIR:PATH=/home/guderian/anaconda3/lib/cmake/Boost-1.82.0
+
+//Path to a file.
+Boost_INCLUDE_DIR:PATH=/home/guderian/anaconda3/include
+
+Boost_PROGRAM_OPTIONS_LIBRARY_RELEASE:STRING=/home/guderian/anaconda3/lib/libboost_program_options.so.1.82.0
+
 //Path to a program.
 CMAKE_ADDR2LINE:FILEPATH=/usr/bin/addr2line
 
@@ -127,7 +135,7 @@ CMAKE_PROJECT_HOMEPAGE_URL:STATIC=
 CMAKE_PROJECT_NAME:STATIC=MatchCrater
 
 //Value Computed by CMake
-CMAKE_PROJECT_VERSION:STATIC=1.2
+CMAKE_PROJECT_VERSION:STATIC=1.2.3
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION_MAJOR:STATIC=1
@@ -136,7 +144,7 @@ CMAKE_PROJECT_VERSION_MAJOR:STATIC=1
 CMAKE_PROJECT_VERSION_MINOR:STATIC=2
 
 //Value Computed by CMake
-CMAKE_PROJECT_VERSION_PATCH:STATIC=
+CMAKE_PROJECT_VERSION_PATCH:STATIC=3
 
 //Value Computed by CMake
 CMAKE_PROJECT_VERSION_TWEAK:STATIC=
@@ -230,6 +238,24 @@ MatchCrater_SOURCE_DIR:STATIC=/home/guderian/code/MatchCrater
 //The directory containing a CMake configuration file for OpenCV.
 OpenCV_DIR:PATH=/home/guderian/anaconda3/envs/cpp/lib/cmake/opencv4
 
+//The directory containing a CMake configuration file for Qt5Core.
+Qt5Core_DIR:PATH=/home/guderian/anaconda3/envs/cpp/lib/cmake/Qt5Core
+
+//The directory containing a CMake configuration file for Qt5Gui.
+Qt5Gui_DIR:PATH=/home/guderian/anaconda3/envs/cpp/lib/cmake/Qt5Gui
+
+//The directory containing a CMake configuration file for Qt5Widgets.
+Qt5Widgets_DIR:PATH=/home/guderian/anaconda3/envs/cpp/lib/cmake/Qt5Widgets
+
+//The directory containing a CMake configuration file for Qt5.
+Qt5_DIR:PATH=/home/guderian/anaconda3/envs/cpp/lib/cmake/Qt5
+
+//The directory containing a CMake configuration file for boost_headers.
+boost_headers_DIR:PATH=/home/guderian/anaconda3/lib/cmake/boost_headers-1.82.0
+
+//The directory containing a CMake configuration file for boost_program_options.
+boost_program_options_DIR:PATH=/home/guderian/anaconda3/lib/cmake/boost_program_options-1.82.0
+
 //Value Computed by CMake
 gdalText_BINARY_DIR:STATIC=/home/guderian/code/MatchCrater/build
 
@@ -244,6 +270,8 @@ gdalText_SOURCE_DIR:STATIC=/home/guderian/code/MatchCrater
 # INTERNAL cache entries
 ########################
 
+//ADVANCED property for variable: Boost_DIR
+Boost_DIR-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_ADDR2LINE
 CMAKE_ADDR2LINE-ADVANCED:INTERNAL=1
 //ADVANCED property for variable: CMAKE_AR
@@ -375,6 +403,8 @@ CMAKE_TAPI-ADVANCED:INTERNAL=1
 CMAKE_UNAME:INTERNAL=/usr/bin/uname
 //ADVANCED property for variable: CMAKE_VERBOSE_MAKEFILE
 CMAKE_VERBOSE_MAKEFILE-ADVANCED:INTERNAL=1
+//Details about finding Boost
+FIND_PACKAGE_MESSAGE_DETAILS_Boost:INTERNAL=[/home/guderian/anaconda3/lib/cmake/Boost-1.82.0/BoostConfig.cmake][cfound components: program_options ][v1.82.0(1.82.0)]
 //Details about finding GDAL
 FIND_PACKAGE_MESSAGE_DETAILS_GDAL:INTERNAL=[/home/guderian/anaconda3/envs/cpp/lib/libgdal.so][/home/guderian/anaconda3/envs/cpp/include][v3.6.2()]
 //Details about finding OpenCV
@@ -389,4 +419,8 @@ GDAL_LIBRARY-ADVANCED:INTERNAL=1
 _CMAKE_CXX_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
 //linker supports push/pop state
 _CMAKE_LINKER_PUSHPOP_STATE_SUPPORTED:INTERNAL=TRUE
+//ADVANCED property for variable: boost_headers_DIR
+boost_headers_DIR-ADVANCED:INTERNAL=1
+//ADVANCED property for variable: boost_program_options_DIR
+boost_program_options_DIR-ADVANCED:INTERNAL=1
 

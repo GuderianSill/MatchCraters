@@ -39,8 +39,13 @@ private:
     double ASPECTRADIO_RADIO;
     double SEARCH_RANGE;
 
+    enum MatchingMethod 
+    {
+        GeographicCoordinateTransformation,  // 地理坐标转换法
+        GuidedMatching                        // 引导匹配法
+    }matchingMethod;
+
     //文件路径
-    ////std::string imagesPath;
     std::string tifPath;
     std::string savePath;
     std::string tmp_savePath;
@@ -50,14 +55,16 @@ private:
     std::string configFile;
     bool matchedByRatio;
 
-    // *图像信息
+    // 图像信息
     GDALDataset* dataset1;
     GDALDataset* dataset2;
-
     int Src1Width;
     int Src1Height;
     int Src2Width;
     int Src2Height;
+    // 图像偏移信息
+    std::vector<double> offset;
+    std::vector<double> dispersion; // 偏移量的标准差
 
     GDALCoordinateTransformer* transformer1;
     GDALCoordinateTransformer* transformer2;
@@ -95,6 +102,9 @@ private:
 
     std::string get_imageName(const std::string& imagePath);
 
+    // 初始化函数
+    void Init(const std::string& name1, const std::string& name2);
+  
     void getTotalMatchingPoints();
     void build_dataStructure();
     void get_NeighborInformation();
@@ -108,18 +118,15 @@ private:
     void writeKeys(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
     void show_matched_image(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
 
-    //
-    static bool CompareNeighborInformation(const std::shared_ptr<NeighborInformation>& a, const std::shared_ptr<NeighborInformation>& b);
-    static bool CompareCratersByArea(const std::shared_ptr<Crater>& a, const std::shared_ptr<Crater>& b);   
-
     struct CompareSet
     {
         bool operator ()(const std::shared_ptr<Crater>& a, const std::shared_ptr<Crater>& b) const;
     };
 
 public:
-    MatchingCrater(const std::string name1, const std::string name2);
-    ~MatchingCrater();
+    MatchingCrater(const std::string& name1, const std::string& name2);
+    MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance);
+    ~MatchingCrater();    
     void runMatching();
     void get_keys();
 

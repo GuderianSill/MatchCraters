@@ -7,20 +7,61 @@ int MatchingCrater::keyNums = 1;
 bool normalExit = false;
 
 /**
- * @brief 构造函数
- *
- * @param name1 第一个CSV文件名
- * @param name2 第二个CSV文件名
- * @param isByExcel 是否使用Excel文件
- *
- * @return 无
+ * @brief Constructor section for the MatchingCrater class.
+ * 
+ * This section defines two constructors for the MatchingCrater class. 
+ * The first constructor initializes the object using the Geographic Coordinate Transformation matching method. 
+ * The second constructor initializes the object using the Guided Matching method and also parses the offset and variance parameters.
+ * 
+ * @param name1 The name of the first image.
+ * @param name2 The name of the second image.
+ * @param offset A string representing the offset, formatted as "x,y".
+ * @param variance A string representing the variance, formatted as "x,y".
  */
-MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2)
+{
+    matchingMethod = GeographicCoordinateTransformation;
+    Init(name1, name2);            
+}
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance)
+{
+    matchingMethod = GuidedMatching;
+    std::istringstream iss1(offset);
+    std::istringstream iss2(variance);
+    std::string token;
+    while (std::getline(iss1, token, ','))
+        this->offset.push_back(std::stod(token));
+    if (this->offset.size() != 2)
+        throw std::runtime_error("Offset error");
+
+    while (std::getline(iss2, token, ','))
+        dispersion.push_back(std::sqrt(std::stod(token)));
+    if (dispersion.size() != 2)
+        throw std::runtime_error("Dispersion error");
+    
+    cout << dispersion[0] << " " << dispersion[1] << std::endl;
+    Init(name1, name2);
+}
+
+/**
+ * @brief Function to initialize the MatchingCrater object.
+ * 
+ * This function is used to initialize the `MatchingCrater` object and performs the following operations:
+ * 1. Register all GDAL drivers.
+ * 2. Read the configuration file and set the parameters required for matching.
+ * 3. Open two TIFF image files and obtain the height and width of the images.
+ * 4. Create coordinate transformers to handle coordinate conversion for the images.
+ * 5. Read crater information from CSV files.
+ * 6. Set the image ID for each crater image.
+ * 7. Calculate the total number of possible matching points.
+ * 
+ * @param name1 The name of the first image, without the file extension.
+ * @param name2 The name of the second image, without the file extension.
+ */
+void MatchingCrater::Init(const std::string& name1, const std::string& name2)
 {
     GDALAllRegister();
 
-    //配置参数, 读取配置文件
-    //// this->imagesPath = "images/";
     this->tifPath = "tif/";
     this->savePath = "saves/";
     this->csvPath = "csv/";
@@ -29,8 +70,9 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
 
     std::ifstream config(configFile);
     if (!config.is_open())    
-        throw std::runtime_error("配置文件打开错误");
+        throw std::runtime_error("config file not found");
 
+    // Create a map to store key-value pairs from the configuration file
     std::map<std::string, double> configMap;
     std::string line;
 
@@ -54,7 +96,7 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
 
     config.close();
     
-    // 初始化图像信息
+    // Init image information
     std::string tifName1 = tifPath + name1 + ".tif";
     std::string tifName2 = tifPath + name2 + ".tif";
 
@@ -62,7 +104,7 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
     dataset2 = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
 
     if (dataset1 == nullptr || dataset2 == nullptr)    
-        throw std::runtime_error("无法打开TIFF文件");
+        throw std::runtime_error("can not open tiff file");
 
     this->transformer1 = new GDALCoordinateTransformer(dataset1);
     this->transformer2 = new GDALCoordinateTransformer(dataset2);
@@ -72,17 +114,17 @@ MatchingCrater::MatchingCrater(const std::string name1, const std::string name2)
     Src2Height = dataset2->GetRasterYSize();
     Src2Width = dataset2->GetRasterXSize();
 
-    std::cout << "图像信息读取完成" << " ";    
+    std::cout << "Image information read completed" << "\n";    
 
-    // 从CSV读取图像信息
+    // Read crater information from CSV files.
     CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);        
 
-    std::cout << "陨石坑信息存储完成" << std::endl;    
+    std::cout << "Crater information stored successfully" << std::endl;    
 
     for (auto& craterImage: CraterImages)    
         craterImage->imageId = craterImage->craters[0]->get_image_id();
 
-    getTotalMatchingPoints();        
+    getTotalMatchingPoints();
 }
 
 MatchingCrater::~MatchingCrater()
@@ -241,7 +283,7 @@ void MatchingCrater::test_showAllMatchingPoints()
  */
 void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const std::unique_ptr<CraterImage>& image2)
 {
-    std::sort(image2->craters.begin(), image2->craters.end(), CompareCratersByArea);
+    std::sort(image2->craters.begin(), image2->craters.end(), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
 
     std::atomic<int> matchedPoints{0};
     std::vector<keys> k1, k2;
@@ -312,17 +354,6 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     show_matched_image(k1, k2, image1->imageId, image2->imageId);
 }
 
-//用于对陨石坑邻域数据排序的比较函数，按照距离从小到大排
-bool MatchingCrater::CompareNeighborInformation(const std::shared_ptr<MatchingCrater::NeighborInformation> &a, const std::shared_ptr<MatchingCrater::NeighborInformation> &b)
-{
-    return a->distance < b->distance; // 按照 distance 从小到大排序
-}
-
-//对存储进的Crater数据按照面积大小排列
-bool MatchingCrater::CompareCratersByArea(const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b)
-{
-    return a->get_area() < b->get_area();
-}
 
 std::string MatchingCrater::get_imageName(const std::string& imagePath)
 {
@@ -369,41 +400,93 @@ void MatchingCrater::getTotalMatchingPoints()
 
 void MatchingCrater::build_dataStructure()
 {
+    std::vector<std::thread> threads;
     for (auto& craterImage: CraterImages)
     {      
-        craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->craters));
+        threads.emplace_back([&craterImage]() 
+        {
+            craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->craters));
+        });
     }    
+    for (auto& thread : threads) 
+    {
+        thread.join();
+    }
     cout << "数据结构构建完成" << " ";
 }
 
 void MatchingCrater::get_NeighborInformation()
 {
-    //cout << "start to get neighborInformations" << endl;    
+    std::mutex mtx;
+    std::vector<std::thread> threads;
+
+    // 定义一个线程函数，用于处理单个 craterImage
+    auto processCraterImage = [&mtx, this](std::unique_ptr<MatchingCrater::CraterImage> &craterImage) 
+    {
+        craterImage->neighborCraters.reserve(craterImage->craters.size());
+        craterImage->IdGetNeighborCraters.reserve(craterImage->craters.size());
+
+        const int num_threads = std::thread::hardware_concurrency();
+        std::vector<std::thread> sub_threads;
+        const size_t chunk_size = (craterImage->craters.size() + num_threads - 1) / num_threads;
+
+        auto process_chunk = [&mtx, this, &craterImage](size_t start, size_t end) 
+        {
+            for (size_t i = start; i < end; ++i) {
+                auto& KDCrater = craterImage->craters[i];
+                std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, this->DOMAIN_RANGE);        
+                //使用emplace_back避免临时对象拷贝
+                std::vector<std::shared_ptr<NeighborInformation>> neighborInformations;
+                neighborInformations.reserve(neighbors.size());  // 预分配内存
+
+                //获取邻域角度，距离信息
+                for (auto& neighbor: neighbors)
+                {                
+                    const double distance = Crater::euclideanDistance(*KDCrater, *neighbor);
+                    const double angle = Crater::getAngle(*KDCrater, *neighbor);
+
+                    neighborInformations.emplace_back(std::make_shared<NeighborInformation>(distance, angle, neighbor));
+                }
+                std::sort(neighborInformations.begin(), neighborInformations.end(),
+                    [](const std::shared_ptr<MatchingCrater::NeighborInformation> &a, const std::shared_ptr<MatchingCrater::NeighborInformation> &b) 
+                    {
+                        return a->distance < b->distance; // 按照 distance 从小到大排序
+                    });
+                //neighborInformations.erase(neighborInformations.begin());
+                {
+                    std::lock_guard<std::mutex> lock(mtx);
+                    craterImage->neighborCraters.try_emplace(KDCrater, std::move(neighborInformations));
+                    craterImage->IdGetNeighborCraters.try_emplace(KDCrater->get_id(), craterImage->neighborCraters[KDCrater]);
+                }
+            }
+        };
+        for (int i = 0; i < num_threads; ++i) 
+        {
+            size_t start = i * chunk_size;
+            size_t end = std::min(start + chunk_size, craterImage->craters.size());
+            if (start < end) 
+            {
+                sub_threads.emplace_back(process_chunk, start, end);
+            }
+        }
+
+        for (auto& thread : sub_threads) {
+            thread.join();
+        }
+    };
     for (auto& craterImage: CraterImages)
     {
-        for (auto& KDCrater: craterImage->craters)
-        {
-            std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, DOMAIN_RANGE);        
-            std::vector<std::shared_ptr<NeighborInformation>> neighborInformations;
-            //获取邻域角度，距离信息
-            for (auto neighbor: neighbors)
-            {
-                double distance = 0;
-                double angle = 0;
-                distance = Crater::euclideanDistance(*KDCrater, *neighbor);
-                angle = Crater::getAngle(*KDCrater, *neighbor);
+        threads.emplace_back(processCraterImage, std::ref(craterImage));
+    }
 
-                std::shared_ptr<NeighborInformation> neighborInformation = std::make_shared<NeighborInformation>(distance, angle, neighbor);
-                neighborInformations.push_back(neighborInformation);
-            }
-            std::sort(neighborInformations.begin(), neighborInformations.end(), CompareNeighborInformation);
-            //neighborInformations.erase(neighborInformations.begin());
-            craterImage->neighborCraters[KDCrater] = neighborInformations;
-            craterImage->IdGetNeighborCraters[KDCrater->get_id()] = neighborInformations;
-        }
+    // 等待所有线程完成
+    for (auto& thread : threads)
+    {
+        thread.join();
     }
     cout << "邻域信息获取完毕" << endl;
 }
+
 
 cv::Point2f MatchingCrater::convertCoordinates(const cv::Point2f &originalCoord, const cv::Size &originalSize, const cv::Size &resizedSize)
 {
@@ -538,8 +621,8 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
     double lowArea = originArea / AREA_TOLERANCE_RATIO;
     double highArea = originArea * AREA_TOLERANCE_RATIO;
 
-    auto lower = std::lower_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(lowArea), CompareCratersByArea);
-    auto higher = std::upper_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(highArea), CompareCratersByArea);
+    auto lower = std::lower_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(lowArea), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
+    auto higher = std::upper_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(highArea), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
 
     std::vector<std::shared_ptr<Crater>> similarCraters;
     for (auto it = lower; it != higher; it++)
@@ -549,13 +632,45 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
             continue;
         else
         {
-            // 转换成地理坐标
-            double geoX1, geoY1, geoX2, geoY2;
-            transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
-            transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
+            switch (matchingMethod)
+            {
+            case MatchingMethod::GeographicCoordinateTransformation:
+                {
+                    // 转换成地理坐标
+                    double geoX1, geoY1, geoX2, geoY2;
+                    transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
+                    transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
+                    if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
+                        similarCraters.push_back(*it);   
+                }
+                break;
+            case MatchingMethod::GuidedMatching:
+                {
+                    // 偏移像素坐标
+                    double pixelx = originCrater->get_coordinates()[0] + offset[0];
+                    double pixely = originCrater->get_coordinates()[1] + offset[1];
 
-            if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
-                similarCraters.push_back(*it);
+                    // 目标坐标
+                    double targetX = it->get()->get_coordinates()[0];
+                    double targetY = it->get()->get_coordinates()[1];
+
+                    // 计算目标与预测的差值
+                    double dx = std::fabs(targetX - pixelx);
+                    double dy = std::fabs(targetY - pixely);
+
+                    if (dx <= 3 * dispersion[0] && dy <= 3 * dispersion[1])
+                        similarCraters.push_back(*it); 
+                }
+                break;
+            default:
+                break;
+            }            
+            // double geoX1, geoY1, geoX2, geoY2;
+            // transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
+            // transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
+
+            // if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
+            //     similarCraters.push_back(*it);
         }
     }
     /*
@@ -595,7 +710,7 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
     std::string name1 = get_imageName(CraterImages[imageId1]->imageName);
     std::string name2 = get_imageName(CraterImages[imageId2]->imageName);
 
-    std::string folderName = savePath + name1 + "_and_" + name2 + "/";
+    std::string folderName = savePath + name1 + "_" + name2 + "/";
 
     int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 
@@ -606,7 +721,7 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
 
     // 定义面积范围和对应的标识
     std::vector<std::pair<double, double>> diameterRanges = {{0, 20}, {20, 50}, {50, 100}};
-    std::vector<std::string> diameterLabels = {"20", "20_50", "50_100"};
+    std::vector<std::string> diameterLabels = {"P20m_", "p50m_", "p100m_"};
 
     // 用于存储每个面积范围对应的过滤后的数据
     std::vector<std::vector<MatchingCrater::keys>> filteredKey1s(diameterRanges.size());
@@ -627,47 +742,45 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
             }
         }
     }
+    
+    std::string fileName1 = folderName + name1 + "__" + name2 + "_L" + ".key";
+    std::string fileName2 = folderName + name1 + "__" + name2 + "_R" + ".key";
+    std::string fileName3 = folderName + name2 + "__" + name1 + "_L" + ".key";
+    std::string fileName4 = folderName + name2 + "__" + name1 + "_R" + ".key";
 
-    // 将内存中的数据写入文件
-    for (size_t i = 0; i < diameterRanges.size(); ++i) 
+    // 定义写入文件的函数
+    auto writeToFile = [](std::string fileName, const std::vector<std::vector<MatchingCrater::keys>>& filteredKeys, const std::vector<std::string>& diameterLabels, int Width, int Height, size_t keySize) 
     {
-        int index = 1;
-        auto [minDiameter, maxDiameter] = diameterRanges[i];
-        std::string diameterLabel = diameterLabels[i];
-
-        auto fileName1 = folderName + name1 + "_" + name2 + "_L_" + diameterLabel + ".key";
-        auto fileName2 = folderName + name1 + "_" + name2 + "_R_" + diameterLabel + ".key";
-
-        std::ofstream file1(fileName1);
-        std::ofstream file2(fileName2);
-
-        if (!file1.is_open() || !file2.is_open())
+        std::ofstream file(fileName);
+        if (!file.is_open())
         {
             std::cerr << "open key file error" << std::endl;
             exit(1);
         }
 
-        file1 << "IC\n" << "Crater Matched Points\n";
-        file2 << "IC\n" << "Crater Matched Points\n";
+        file << "IC\n" << "Crater Matched Points\n";
+        file << Width << "\n" << Height << std::endl;
+        file << keySize << std::endl;
 
-        file1 << Src1Width << "\n" << Src1Height << std::endl;
-        file2 << Src2Width << "\n" << Src2Height << std::endl;
-
-        file1 << filteredKey1s[i].size() << std::endl;
-        for (const auto& data: filteredKey1s[i]) 
+        int index = 1;
+        for (size_t i = 0; i < filteredKeys.size(); ++i) 
         {
-            file1 << index++ << " " << data.x << " " << data.y << std::endl;
+            std::string diameterLabel = diameterLabels[i];
+            for (const auto& data: filteredKeys[i]) 
+            {
+                file << diameterLabel << index++  << " " << data.x << " " << data.y << std::endl;
+            }
         }
-        file1.close();
+    };
+    std::thread write1(writeToFile, fileName1, std::ref(filteredKey1s), std::ref(diameterLabels), Src1Width, Src1Height, key1.size());
+    std::thread write2(writeToFile, fileName2, std::ref(filteredKey2s), std::ref(diameterLabels), Src2Width, Src2Height, key2.size());
+    std::thread write3(writeToFile, fileName3, std::ref(filteredKey2s), std::ref(diameterLabels), Src2Width, Src2Height, key2.size());
+    std::thread write4(writeToFile, fileName4, std::ref(filteredKey1s), std::ref(diameterLabels), Src1Width, Src1Height, key1.size());
 
-        index = 1;
-        file2 << filteredKey2s[i].size() << std::endl;
-        for (const auto& data: filteredKey2s[i]) 
-        {
-            file2 << index++ << " " << data.x << " " << data.y << std::endl;
-        }
-        file2.close();
-    }
+    write1.join();
+    write2.join();
+    write3.join();
+    write4.join();    
 } 
 
 void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
