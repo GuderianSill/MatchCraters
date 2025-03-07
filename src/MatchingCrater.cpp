@@ -144,7 +144,6 @@ void MatchingCrater::runMatching()
 void MatchingCrater::get_keys()
 {
     show_keys(CraterImages[0], CraterImages[1]);
-    cout << "get keys success" << endl;
 }
 
 void MatchingCrater::test_get_NeighborInformation()
@@ -286,12 +285,49 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     std::sort(image2->craters.begin(), image2->craters.end(), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
 
     std::atomic<int> matchedPoints{0};
+    std::atomic<int> currentId{0};
     std::vector<keys> k1, k2;
     std::mutex k_mutex; // 保护k1/k2和输出
 
+    // 创建进度条显示线程
+    auto progress_monitor = [&, this]()
+    {
+        //std::cout << std::unitbuf;  // 禁用输出缓冲
+        const int bar_width = 50;
+    
+        while (currentId < image1->sumIds) 
+        {
+            // 计算各阶段进度
+            float match_progress = currentId / (float)image1->sumIds;
+            
+            // 组合总进度（根据阶段权重）
+            float total_progress = match_progress;
+            
+            // 构建进度条
+            cout << "\r[";
+            int pos = bar_width * total_progress;
+            for (int i = 0; i < bar_width; ++i) {
+                if (i < pos) cout << "=";
+                else if (i == pos) cout << ">";
+                else cout << " ";
+            }
+            cout << "] "
+                << double(total_progress * 100.0) << "% "                 
+                << "(Match: " << currentId << "/" << image1->sumIds << ") "
+                << std::flush;
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        cout << "\r[";
+        for (int i = 0; i < bar_width; ++i)
+            cout << "=";
+        cout << "] " << 100 << "% " << "(Match: " << image1->sumIds << "/" << image1->sumIds << ")    " << std::flush;
+        cout << endl;
+    };
+    std::thread progress_thread(progress_monitor);
+
     const int NUM_THREADS = std::thread::hardware_concurrency();
     std::vector<std::thread> threads;
-    std::atomic<int> currentId{0};
 
     //cout << "sumPoints: " << image1->sumIds << endl;
 
@@ -334,23 +370,22 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
                             resultCrater->get_coordinates()[1], resultCrater->get_diameter()});
                     }
                 }
-                //同步输出
-                {
-                    std::lock_guard<std::mutex> lock(k_mutex);
-                    double progress = static_cast<double>(currentId.load() < image1->sumIds ? currentId.load() : image1->sumIds) / image1->sumIds * 100;
-                    // cout << originCrater[0]->crater->get_id()
-                    //      << "匹配完成\n"
-                    //      << "matched" << matchedPoints.load() << endl;
-                    cout << "\r当前进度：" << std::fixed << std::setprecision(2) << progress << "%" << std::flush;
-                }
+                // 同步输出
+                // {
+                //     std::lock_guard<std::mutex> lock(k_mutex);
+                //     progress_monitor();
+                // }
             }
         });
     }
     
+    progress_thread.join();
     for (auto& t: threads) t.join();
+    
 
     cout << "\n匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
     writeKeys(k1, k2, image1->imageId, image2->imageId);
+    cout << "get keys success" << endl;
     show_matched_image(k1, k2, image1->imageId, image2->imageId);
 }
 
@@ -432,7 +467,8 @@ void MatchingCrater::get_NeighborInformation()
 
         auto process_chunk = [&mtx, this, &craterImage](size_t start, size_t end) 
         {
-            for (size_t i = start; i < end; ++i) {
+            for (size_t i = start; i < end; ++i) 
+            {
                 auto& KDCrater = craterImage->craters[i];
                 std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, this->DOMAIN_RANGE);        
                 //使用emplace_back避免临时对象拷贝
@@ -758,9 +794,13 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
             exit(1);
         }
 
+        size_t totalSize = 0;
+        for (const auto& filteredKey: filteredKeys)
+            totalSize += filteredKey.size();
+
         file << "IC\n" << "Crater Matched Points\n";
         file << Width << "\n" << Height << std::endl;
-        file << keySize << std::endl;
+        file << totalSize << std::endl;
 
         int index = 1;
         for (size_t i = 0; i < filteredKeys.size(); ++i) 
@@ -820,26 +860,25 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     
     cout << "Mat success" << endl;
 
-    
-
     cv::Size originalSize1 = img1.size();
     cv::Size originalSize2 = img2.size();
 
-    cv::Size resizedSize1 = img1.size();
-    cv::Size resizedSize2 = img2.size();
+    cv::Size resizedSize1 = originalSize1;
+    cv::Size resizedSize2 = originalSize2;
 
-    while (img1.cols * img1.rows > 2000000)
+    // 计算缩放比例
+    double scale1 = std::sqrt(2000000.0 / (img1.cols * img1.rows));
+    double scale2 = std::sqrt(2000000.0 / (img2.cols * img2.rows));
+
+    if (scale1 < 1) 
     {
-        cv::Mat resized_img;
-        cv::resize(img1, resized_img, cv::Size(img1.cols / 2, img1.rows / 2));
-        img1 = resized_img;
+        cv::resize(img1, img1, cv::Size(img1.cols * scale1, img1.rows * scale1));
         resizedSize1 = img1.size();
     }
-    while (img2.cols * img2.rows > 2000000)
+    
+    if (scale2 < 1) 
     {
-        cv::Mat resized_img;
-        cv::resize(img2, resized_img, cv::Size(img2.cols / 2, img2.rows / 2));
-        img2 = resized_img;
+        cv::resize(img2, img2, cv::Size(img2.cols * scale2, img2.rows * scale2));
         resizedSize2 = img2.size();
     }
 
@@ -850,40 +889,6 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     cv::cvtColor(img1, Channel3img1, cv::COLOR_GRAY2BGR);
     cv::cvtColor(img2, Channel3img2, cv::COLOR_GRAY2BGR);
     cv::Mat mergedImg(newHeight, newWidth, Channel3img1.type(), cv::Scalar(0, 0, 0));
-
-    // !
-    /*
-    std::vector<cv::KeyPoint> keypoints1, keypoints2;
-    for (const auto& point : points1) {
-        cv::Point2f p = convertCoordinates(point, originalSize1, resizedSize1);
-        keypoints1.emplace_back(p, 1.0);
-    }
-
-    for (const auto& point : points2) {
-        cv::Point2f p = convertCoordinates(point, originalSize2, resizedSize2);
-        keypoints2.emplace_back(p, 1.0);
-    }
-
-    // 创建 DMatch 向量
-    std::vector<cv::DMatch> matches;
-    for (size_t i = 0; i < points1.size(); ++i) {
-        matches.emplace_back(static_cast<int>(i), static_cast<int>(i), 0.0);
-    }
-
-    // 绘制匹配结果
-    cv::Mat img_matches;
-    drawMatches(img1, keypoints1, img2, keypoints2,
-                matches, img_matches, cv::Scalar::all(-1),
-                cv::Scalar::all(-1), std::vector<char>(),
-                //cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS
-                cv::DrawMatchesFlags::DRAW_RICH_KEYPOINTS
-                );
-
-    // 显示匹配结果
-    cv::imshow("Matches", img_matches);
-    cv::waitKey(0);
-    */
-    // !
 
     // 将img1和img2复制到合并图像中
     Channel3img1.copyTo(mergedImg(cv::Rect(0, 0, Channel3img1.cols, Channel3img1.rows)));
@@ -896,7 +901,7 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     for (size_t i = 0; i < points1.size(); ++i)
     {
         cv::Point2f p1 = convertCoordinates(points1[i], originalSize1, resizedSize1);
-        cv::Point2f p2 = convertCoordinates(points2[i], originalSize2, resizedSize2) + cv::Point2f(Channel3img1.cols, 0);
+        cv::Point2f p2 = convertCoordinates(points2[i], originalSize2, resizedSize2) + cv::Point2f(img2.cols, 0);
         uchar b = rand() % 256;
         uchar g = rand() % 256;
         uchar r = rand() % 256;

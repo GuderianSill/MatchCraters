@@ -6,6 +6,8 @@ v1.2.3 增加图像处理线程，优化内存管理，优化匹配进度显示�
 
 v1.3.0 新增图像匹配方法，优化命令行输入形式，优化key文件储存形式
 
+v1.3.1 修法key文件储存与显示不一样的bug，优化命令行显示形式
+
 conda create -n cpp python=3.11
 
 conda activate cpp
