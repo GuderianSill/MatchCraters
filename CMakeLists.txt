@@ -1,7 +1,7 @@
 #cmake version
 cmake_minimum_required(VERSION 3.15)
 
-project(MatchCrater VERSION 1.3.1 LANGUAGES CXX)
+project(MatchCrater VERSION 1.3.2 LANGUAGES CXX)
 
 #set the c++ standard
 set(CMAKE_CXX_STANDARD 17)
@@ -11,9 +11,9 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 #set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3")
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -O3")
 
-set(GDAL_DIR "/home/guderian/anaconda3/envs/cpp/lib/cmake/gdal")
-set(OPENCV_DIR "/home/guderian/anaconda3/envs/cpp/lib/cmake/opencv4")
-set(CMAKE_PREFIX_PATH "/home/guderian/anaconda3/envs/cpp/lib/cmake/Qt5")
+#set(GDAL_DIR "/home/guderian/anaconda3/envs/cpp/lib/cmake/gdal")
+#set(OPENCV_DIR "/home/guderian/anaconda3/envs/cpp/lib/cmake/opencv4")
+#set(CMAKE_PREFIX_PATH "/home/guderian/anaconda3/envs/cpp/lib/cmake/Qt5")
 
 # 添加 GDAL 库
 find_package(GDAL REQUIRED)
@@ -22,7 +22,8 @@ find_package(OpenCV REQUIRED)
 # 添加 Qt5 库
 find_package(Qt5 COMPONENTS Widgets REQUIRED)
 # 添加 Boost 库
-find_package(Boost 1.82.0 REQUIRED COMPONENTS program_options)
+find_package(Boost REQUIRED COMPONENTS program_options)
+
 
 # 打印 GDAL 库的信息
 message("GDAL_INCLUDE_DIRS: ${GDAL_INCLUDE_DIRS}")
@@ -42,11 +43,13 @@ message("Boost_PROGRAM_OPTIONS_LIBRARY: ${Boost_PROGRAM_OPTIONS_LIBRARY}")
 
 # 包含自定义头文件目录
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${MODULE_INCLUDE_DIRS})  
 
 message("${CMAKE_SOURCE_DIR}/include")
 
 #add the executable
-add_executable(MatchCrater 
+add_executable(MatchCrater
+${MODULE_SOURCES}
 src/main.cpp
 src/crater.cpp
 src/GDALTransformer.cpp
@@ -62,4 +65,3 @@ target_link_libraries(MatchCrater ${OpenCV_LIBS})
 target_link_libraries(MatchCrater GDAL::GDAL)
 target_link_libraries(MatchCrater Qt5::Widgets)
 target_link_libraries(MatchCrater Boost::program_options)
-

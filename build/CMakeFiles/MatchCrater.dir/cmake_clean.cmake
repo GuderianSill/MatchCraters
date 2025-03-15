@@ -1,4 +1,6 @@
 file(REMOVE_RECURSE
+  "CMakeFiles/MatchCrater.dir/modules/ImageMatch/RemoveOutliers.cpp.o"
+  "CMakeFiles/MatchCrater.dir/modules/ImageMatch/RemoveOutliers.cpp.o.d"
   "CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o"
   "CMakeFiles/MatchCrater.dir/src/GDALTransformer.cpp.o.d"
   "CMakeFiles/MatchCrater.dir/src/MatchingCrater.cpp.o"

@@ -8,17 +8,19 @@ namespace po = boost::program_options;
 
 int main(int argc, char *argv[])
 {    
+    // 启动内存检查线程
+    std::thread memoryThread(checkMemoryUsage);
     try 
-    {
-        // 启动内存检查线程
-        std::thread memoryThread(checkMemoryUsage);
+    {        
+        bool filter;
         po::options_description desc("Allowed options");
         desc.add_options()
             ("help", "produce help message")
             ("N1", po::value<std::string>()->required(), "set name1 value")
             ("N2", po::value<std::string>()->required(), "set name2 value")
             ("offset", po::value<std::string>(), "set offset value")
-            ("variance", po::value<std::string>(), "set variance value");
+            ("variance", po::value<std::string>(), "set variance value")
+            ("filter", po::value<bool>(&filter)->default_value(false), "set whether filter");
 
         po::variables_map vm;
         try 
@@ -49,27 +51,28 @@ int main(int argc, char *argv[])
         {
             std::string offset = vm["offset"].as<std::string>();
             std::string variance = vm["variance"].as<std::string>();
-            MC = new MatchingCrater(N1, N2, offset, variance);
+            MC = new MatchingCrater(N1, N2, offset, variance, filter);
         } 
         else
         {
-            MC = new MatchingCrater(N1, N2);
+            MC = new MatchingCrater(N1, N2, filter);
         }
         MC->runMatching();
         MC->get_keys();
         delete MC;
-        memoryThread.join();
+        
     }
     catch (std::exception& e) 
     {
-        std::cerr << "Error: " << e.what() << std::endl;
+        std::cerr << "Error: " << e.what() << std::endl;        
         return 1;
     }
     catch (...) 
     {
-        std::cerr << "Unknown error!" << std::endl;
+        std::cerr << "Unknown error!" << std::endl;        
         return 1;
     }
+    memoryThread.join();
     cout << "匹配完成" << endl;
     return 0;
 }

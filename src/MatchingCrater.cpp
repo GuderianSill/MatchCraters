@@ -1,4 +1,5 @@
 #include "MatchingCrater.hpp"
+#include "RemoveOutliers.hpp"
 using std::cin;
 using std::cout;
 using std::endl;
@@ -18,12 +19,12 @@ bool normalExit = false;
  * @param offset A string representing the offset, formatted as "x,y".
  * @param variance A string representing the variance, formatted as "x,y".
  */
-MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2)
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, bool filter): FILTER(filter)
 {
     matchingMethod = GeographicCoordinateTransformation;
     Init(name1, name2);            
 }
-MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance)
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance, bool filter): FILTER(filter)
 {
     matchingMethod = GuidedMatching;
     std::istringstream iss1(offset);
@@ -66,7 +67,7 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
     this->savePath = "saves/";
     this->csvPath = "csv/";
     this->matchedByRatio = true;
-    this->configFile = "config.txt";
+    this->configFile = "config.cfg";
 
     std::ifstream config(configFile);
     if (!config.is_open())    
@@ -382,11 +383,19 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     progress_thread.join();
     for (auto& t: threads) t.join();
     
-
     cout << "\n匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
-    writeKeys(k1, k2, image1->imageId, image2->imageId);
+
+    vecPtSrc = k1;
+    vecPtDst = k2;
+    if (this->FILTER)
+    {
+        cv::Mat h;
+        cout << FilterByHomographyMat(k1, k2, vecPtSrc, vecPtDst, h) << endl;
+    }
+
+    writeKeys(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
     cout << "get keys success" << endl;
-    show_matched_image(k1, k2, image1->imageId, image2->imageId);
+    show_matched_image(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
 }
 
 
@@ -739,7 +748,7 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
  *
  * @return void
  */
-void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
+void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, const std::vector<MatchingCrater::keys>& key2, int imageId1, int imageId2)
 {
     std::string ID = std::to_string(keyNums++);
 
@@ -757,7 +766,7 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys> &key1, co
 
     // 定义面积范围和对应的标识
     std::vector<std::pair<double, double>> diameterRanges = {{0, 20}, {20, 50}, {50, 100}};
-    std::vector<std::string> diameterLabels = {"P20m_", "p50m_", "p100m_"};
+    std::vector<std::string> diameterLabels = {"P20m_", "P50m_", "P100m_"};
 
     // 用于存储每个面积范围对应的过滤后的数据
     std::vector<std::vector<MatchingCrater::keys>> filteredKey1s(diameterRanges.size());
@@ -866,19 +875,18 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     cv::Size resizedSize1 = originalSize1;
     cv::Size resizedSize2 = originalSize2;
 
-    // 计算缩放比例
-    double scale1 = std::sqrt(2000000.0 / (img1.cols * img1.rows));
-    double scale2 = std::sqrt(2000000.0 / (img2.cols * img2.rows));
-
-    if (scale1 < 1) 
+    while (img1.cols * img1.rows > 2000000)
     {
-        cv::resize(img1, img1, cv::Size(img1.cols * scale1, img1.rows * scale1));
+        cv::Mat resized_img;
+        cv::resize(img1, resized_img, cv::Size(img1.cols / 2, img1.rows / 2));
+        img1 = resized_img;
         resizedSize1 = img1.size();
     }
-    
-    if (scale2 < 1) 
+    while (img2.cols * img2.rows > 2000000)
     {
-        cv::resize(img2, img2, cv::Size(img2.cols * scale2, img2.rows * scale2));
+        cv::Mat resized_img;
+        cv::resize(img2, resized_img, cv::Size(img2.cols / 2, img2.rows / 2));
+        img2 = resized_img;
         resizedSize2 = img2.size();
     }
 
@@ -901,7 +909,7 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     for (size_t i = 0; i < points1.size(); ++i)
     {
         cv::Point2f p1 = convertCoordinates(points1[i], originalSize1, resizedSize1);
-        cv::Point2f p2 = convertCoordinates(points2[i], originalSize2, resizedSize2) + cv::Point2f(img2.cols, 0);
+        cv::Point2f p2 = convertCoordinates(points2[i], originalSize2, resizedSize2) + cv::Point2f(Channel3img1.cols, 0);
         uchar b = rand() % 256;
         uchar g = rand() % 256;
         uchar r = rand() % 256;
@@ -923,18 +931,57 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     // 显示合并后的图像
     cv::imshow(saveName, mergedImg);
     cv::imwrite(tmp_savePath + saveName, mergedImg);    
-    cv::waitKey(10);
+    cv::waitKey(100);
     cv::destroyWindow(saveName);
 }
 
 
-bool MatchingCrater::NeighborInformation::operator <(const MatchingCrater::NeighborInformation &other) const
-{
-    return distance < other.distance;
-}
+// bool MatchingCrater::NeighborInformation::operator <(const MatchingCrater::NeighborInformation &other) const
+// {
+//     return distance < other.distance;
+// }
 
 
-bool MatchingCrater::CompareSet::operator ()(const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) const
+// bool MatchingCrater::CompareSet::operator ()(const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) const
+// {
+//     return a->get_id() < b->get_id();
+// }
+
+
+int MatchingCrater::FilterByHomographyMat(std::vector<keys>& vecSrcKeys, std::vector<keys>& vecDstKeys, std::vector<keys>& vecSrcNew, std::vector<keys>& vecDstNew, cv::Mat& h)
 {
-    return a->get_id() < b->get_id();
+    // 检查输入有效性
+    if (vecSrcKeys.size() != vecDstKeys.size())
+        return -1;
+
+    const int minMatchesAllowedRansac = 6;
+    if (vecSrcKeys.size() < minMatchesAllowedRansac)
+        return -1;
+
+    // 从keys结构体中提取坐标点
+    std::vector<cv::Point2f> srcPoints, dstPoints;
+    for (size_t i = 0; i < vecSrcKeys.size(); ++i) {
+        srcPoints.emplace_back(vecSrcKeys[i].x, vecSrcKeys[i].y);
+        dstPoints.emplace_back(vecDstKeys[i].x, vecDstKeys[i].y);
+    }
+
+    // 计算单应矩阵并获取内点掩码
+    std::vector<uchar> inliersMask;
+    cv::Mat Homography = cv::findHomography(srcPoints, dstPoints, inliersMask, cv::RANSAC);
+    h = Homography.clone();
+
+    // 根据掩码保留有效点（同时保留所有结构体信息）
+    vecSrcNew.clear();
+    vecDstNew.clear();
+    for (size_t i = 0; i < inliersMask.size(); ++i) 
+    {
+        if (inliersMask[i]) 
+        {
+            vecSrcNew.push_back(vecSrcKeys[i]);
+            vecDstNew.push_back(vecDstKeys[i]);
+        }
+    }
+
+    // 返回被剔除的点数
+    return vecSrcKeys.size() - vecSrcNew.size();
 }

@@ -18,7 +18,8 @@ void checkMemoryUsage()
         size_t totalMemory = 0;
         size_t availableMemory = 0;
         std::string line;
-        while (std::getline(meminfo, line)) {
+        while (std::getline(meminfo, line)) 
+        {
             if (line.find("MemTotal:") != std::string::npos) 
             {
                 sscanf(line.c_str(), "MemTotal: %lu kB", &totalMemory);
@@ -28,7 +29,8 @@ void checkMemoryUsage()
         }
         meminfo.close();
 
-        if (totalMemory > 0) {
+        if (totalMemory > 0) 
+        {
             // 计算内存占用百分比
             double memoryUsage = 100.0 - (static_cast<double>(availableMemory) / totalMemory * 100);
 

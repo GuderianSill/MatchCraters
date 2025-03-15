@@ -19,8 +19,8 @@
 #include <opencv2/xfeatures2d.hpp>
 #include <opencv2/xfeatures2d/cuda.hpp>
 
-#include <sys/types.h>
-#include <sys/stat.h>
+//#include <sys/types.h>
+//#include <sys/stat.h>
 #include <unistd.h>
 
 #include <gdal_priv.h>
@@ -38,6 +38,7 @@ private:
     double AREA_TOLERANCE_RATIO;
     double ASPECTRADIO_RADIO;
     double SEARCH_RANGE;
+    bool FILTER;
 
     enum MatchingMethod 
     {
@@ -73,6 +74,9 @@ private:
     int totalMatchingPoints;
 
     struct keys{int id; double x; double y; double diameter;};
+    int FilterByHomographyMat(std::vector<keys>& vecSrcKeys, std::vector<keys>& vecDstKeys, std::vector<keys>& vecSrcNew, std::vector<keys>& vecDstNew, cv::Mat& h);
+    std::vector<keys> vecPtSrc;
+    std::vector<keys> vecPtDst;
 
     //用于中心位置存储领域坑
     struct NeighborInformation
@@ -82,7 +86,7 @@ private:
         std::shared_ptr<Crater> crater;
         NeighborInformation(double distance, double angle, std::shared_ptr<Crater> crater): distance(distance), angle(angle), crater(crater){}
 
-        bool operator <(const NeighborInformation& other) const;
+        //bool operator <(const NeighborInformation& other) const;
     };    
 
     //用于存储每个图片中的埙石坑信息
@@ -118,14 +122,14 @@ private:
     void writeKeys(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
     void show_matched_image(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
 
-    struct CompareSet
-    {
-        bool operator ()(const std::shared_ptr<Crater>& a, const std::shared_ptr<Crater>& b) const;
-    };
+    // struct CompareSet
+    // {
+    //     bool operator ()(const std::shared_ptr<Crater>& a, const std::shared_ptr<Crater>& b) const;
+    // };
 
 public:
-    MatchingCrater(const std::string& name1, const std::string& name2);
-    MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance);
+    MatchingCrater(const std::string& name1, const std::string& name2, bool filter);
+    MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance, bool filter);
     ~MatchingCrater();    
     void runMatching();
     void get_keys();
