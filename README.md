@@ -10,12 +10,5 @@ v1.3.1 修复key文件储存与显示不一样的bug，优化命令行显示形�
 
 v1.3.2 新增RANSAC误差处理选项
 
-conda create -n cpp python=3.11
-
-conda activate cpp
-
-conda install conda-forge::cmake
-
-conda install conda-forge::opencv
-
-conda install conda-forge::gdal
+#环境配置
+conda env create -f cpp.yaml
