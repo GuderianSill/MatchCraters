@@ -39,6 +39,7 @@ private:
     double ASPECTRADIO_RADIO;
     double SEARCH_RANGE;
     bool FILTER;
+    bool SHOW_IMAGE;
 
     enum MatchingMethod 
     {
@@ -85,8 +86,6 @@ private:
         double angle;
         std::shared_ptr<Crater> crater;
         NeighborInformation(double distance, double angle, std::shared_ptr<Crater> crater): distance(distance), angle(angle), crater(crater){}
-
-        //bool operator <(const NeighborInformation& other) const;
     };    
 
     //用于存储每个图片中的埙石坑信息
@@ -95,7 +94,8 @@ private:
         std::string imageName;
         int imageId;
         int sumIds;
-        std::vector<std::shared_ptr<Crater>> craters;      
+        std::vector<std::shared_ptr<Crater>> craters;
+        std::vector<std::shared_ptr<Crater>> matchableCraters;
         std::unique_ptr<KDTree> kdTree;
         std::unordered_map<std::shared_ptr<Crater>, std::vector<std::shared_ptr<NeighborInformation>>> neighborCraters;
         std::unordered_map<int, std::vector<std::shared_ptr<NeighborInformation>>> IdGetNeighborCraters;
@@ -120,6 +120,7 @@ private:
     void matching_imageProgram();
     void show_keys(const std::unique_ptr<CraterImage>& image1, const std::unique_ptr<CraterImage>& image2);
     void writeKeys(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
+    int writeLog(const std::vector<keys>& k1, const std::vector<keys>& k2, const double probability);
     void show_matched_image(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
 
     // struct CompareSet
@@ -128,8 +129,9 @@ private:
     // };
 
 public:
-    MatchingCrater(const std::string& name1, const std::string& name2, bool filter);
-    MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance, bool filter);
+    MatchingCrater(const std::string& name1, const std::string& name2, bool filter, bool show_image);
+    MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance,
+        bool filter, bool show_image);
     ~MatchingCrater();    
     void runMatching();
     void get_keys();

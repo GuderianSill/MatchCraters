@@ -13,6 +13,7 @@ int main(int argc, char *argv[])
     try 
     {        
         bool filter;
+        bool show_image;
         po::options_description desc("Allowed options");
         desc.add_options()
             ("help", "produce help message")
@@ -20,7 +21,8 @@ int main(int argc, char *argv[])
             ("N2", po::value<std::string>()->required(), "set name2 value")
             ("offset", po::value<std::string>(), "set offset value")
             ("variance", po::value<std::string>(), "set variance value")
-            ("filter", po::value<bool>(&filter)->default_value(false), "set whether filter");
+            ("filter", po::value<bool>(&filter)->default_value(false), "set whether filter")
+            ("image", po::value<bool>(&show_image)->default_value(true), "set whether show image");
 
         po::variables_map vm;
         try 
@@ -51,11 +53,11 @@ int main(int argc, char *argv[])
         {
             std::string offset = vm["offset"].as<std::string>();
             std::string variance = vm["variance"].as<std::string>();
-            MC = new MatchingCrater(N1, N2, offset, variance, filter);
+            MC = new MatchingCrater(N1, N2, offset, variance, filter, show_image);
         } 
         else
         {
-            MC = new MatchingCrater(N1, N2, filter);
+            MC = new MatchingCrater(N1, N2, filter, show_image);
         }
         MC->runMatching();
         MC->get_keys();

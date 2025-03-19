@@ -19,12 +19,15 @@ bool normalExit = false;
  * @param offset A string representing the offset, formatted as "x,y".
  * @param variance A string representing the variance, formatted as "x,y".
  */
-MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, bool filter): FILTER(filter)
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, bool filter, bool show_image):
+    FILTER(filter), SHOW_IMAGE(show_image)
 {
     matchingMethod = GeographicCoordinateTransformation;
     Init(name1, name2);            
 }
-MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance, bool filter): FILTER(filter)
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance, 
+    bool filter, bool show_image): 
+    FILTER(filter), SHOW_IMAGE(show_image)
 {
     matchingMethod = GuidedMatching;
     std::istringstream iss1(offset);
@@ -283,7 +286,8 @@ void MatchingCrater::test_showAllMatchingPoints()
  */
 void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const std::unique_ptr<CraterImage>& image2)
 {
-    std::sort(image2->craters.begin(), image2->craters.end(), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
+    std::sort(image2->matchableCraters.begin(), image2->matchableCraters.end(),
+     [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
 
     std::atomic<int> matchedPoints{0};
     std::atomic<int> currentId{0};
@@ -296,10 +300,11 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
         //std::cout << std::unitbuf;  // 禁用输出缓冲
         const int bar_width = 50;
     
-        while (currentId < image1->sumIds) 
+        //while (currentId < image1->sumIds)
+        while (currentId < image1->matchableCraters.size())
         {
             // 计算各阶段进度
-            float match_progress = currentId / (float)image1->sumIds;
+            float match_progress = currentId / (float)image1->matchableCraters.size();
             
             // 组合总进度（根据阶段权重）
             float total_progress = match_progress;
@@ -313,8 +318,8 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
                 else cout << " ";
             }
             cout << "] "
-                << double(total_progress * 100.0) << "% "                 
-                << "(Match: " << currentId << "/" << image1->sumIds << ") "
+                << double(total_progress * 100.0) << "% "
+                << "(Match: " << currentId << "/" << image1->matchableCraters.size() << ") "
                 << std::flush;
             
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -322,15 +327,13 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
         cout << "\r[";
         for (int i = 0; i < bar_width; ++i)
             cout << "=";
-        cout << "] " << 100 << "% " << "(Match: " << image1->sumIds << "/" << image1->sumIds << ")    " << std::flush;
+        cout << "] " << 100 << "% " << "(Match: " << image1->matchableCraters.size() << "/" << image1->matchableCraters.size() << ")    " << std::flush;
         cout << endl;
     };
     std::thread progress_thread(progress_monitor);
 
     const int NUM_THREADS = std::thread::hardware_concurrency();
     std::vector<std::thread> threads;
-
-    //cout << "sumPoints: " << image1->sumIds << endl;
 
     for (int i = 0; i < NUM_THREADS; i++)
     {
@@ -340,8 +343,9 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
             {
                 //动态获取任务
                 int CraterId = currentId.fetch_add(1);
-                if (CraterId >= image1->sumIds) break;
-                auto& originCrater = image1->IdGetNeighborCraters[CraterId];
+                if (CraterId >= image1->matchableCraters.size()) break;
+                //auto& originCrater = image1->IdGetNeighborCraters[CraterId];
+                auto& originCrater = image1->neighborCraters[image1->matchableCraters[CraterId]];
                 double originx = originCrater[0]->crater->get_coordinates()[0];
                 double originy = originCrater[0]->crater->get_coordinates()[1];
                 double originDiameter = originCrater[0]->crater->get_diameter();
@@ -371,30 +375,52 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
                             resultCrater->get_coordinates()[1], resultCrater->get_diameter()});
                     }
                 }
-                // 同步输出
-                // {
-                //     std::lock_guard<std::mutex> lock(k_mutex);
-                //     progress_monitor();
-                // }
             }
         });
     }
     
     progress_thread.join();
-    for (auto& t: threads) t.join();
+    for (auto& t: threads)
+        t.join();
     
-    cout << "\n匹配概率：" << static_cast<double>(matchedPoints.load()) / totalMatchingPoints << endl;
+    double probability = static_cast<double>(matchedPoints.load()) / totalMatchingPoints;
+    cout << "\n匹配概率：" << probability << endl;
 
+    // std::vector<keys>
     vecPtSrc = k1;
     vecPtDst = k2;
     if (this->FILTER)
     {
+        auto tmpSrc = vecPtSrc;
+        auto tmpDst = vecPtDst;
         cv::Mat h;
-        cout << FilterByHomographyMat(k1, k2, vecPtSrc, vecPtDst, h) << endl;
+        cout << FilterByHomographyMat(k1, k2, tmpSrc, tmpDst, h) << endl;
+        cout << FilterByHomographyMat(tmpDst, tmpSrc, vecPtDst, vecPtSrc, h) << endl;
+    }
+
+    int logCode = writeLog(k1, k2, probability);
+    cout << "logCode:" << logCode << endl;
+
+    switch (logCode)
+    {
+    case -1:
+        cout << "写入日志失败" << endl;
+        return;
+        break;
+    case -2:
+        cout << "key1 size(" << k1.size() << ") is too small" << std::endl;
+        return;
+        break;
+    case -3:
+        cout << "ransac size(" << vecPtSrc.size() << ") is too small" << std::endl;
+        return;
+    default:
+        break;
     }
 
     writeKeys(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
     cout << "get keys success" << endl;
+    if (this->SHOW_IMAGE)
     show_matched_image(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
 }
 
@@ -428,15 +454,30 @@ void MatchingCrater::getTotalMatchingPoints()
 {
     for (auto& crater: CraterImages[0]->craters)
     {
-        double geoX1, geoY1;
-        transformer1->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], geoX1, geoY1);
-        double pixelX2, pixelY2;
+        double SrcGeoX, SrcGeoY;
+        transformer1->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], SrcGeoX, SrcGeoY);
+        double DstPixelX, DstPixelY;
         // 计算像素坐标
-        transformer2->geoToPixel(geoX1, geoY1, pixelX2, pixelY2);
+        transformer2->geoToPixel(SrcGeoX, SrcGeoY, DstPixelX, DstPixelY);
 
-        if (pixelX2 >= 0 && pixelX2 < Src2Width && pixelY2 >= 0 && pixelY2 < Src2Height)
+        if (DstPixelX >= 0 - DOMAIN_RANGE && DstPixelX < Src2Width + DOMAIN_RANGE &&
+            DstPixelY >= 0 - DOMAIN_RANGE && DstPixelY < Src2Height + DOMAIN_RANGE)
         {
             totalMatchingPoints++;
+            CraterImages[0]->matchableCraters.push_back(crater);
+        }
+    }
+    for (auto& crater: CraterImages[1]->craters)
+    {
+        double DstGeoX, DstGeoY;
+        transformer2->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], DstGeoX, DstGeoY);
+        double SrcPixelX, SrcPixelY;
+        // 计算像素坐标
+        transformer1->geoToPixel(DstGeoX, DstGeoY, SrcPixelX, SrcPixelY);
+        if (SrcPixelX >= 0 - DOMAIN_RANGE && SrcPixelX < Src1Width + DOMAIN_RANGE &&
+            SrcPixelY >= 0 - DOMAIN_RANGE && SrcPixelY < Src1Height + DOMAIN_RANGE)
+        {
+            CraterImages[1]->matchableCraters.push_back(crater);
         }
     }
     cout << "总可能匹配点数：" << totalMatchingPoints << endl;
@@ -449,14 +490,15 @@ void MatchingCrater::build_dataStructure()
     {      
         threads.emplace_back([&craterImage]() 
         {
-            craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->craters));
+            craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->matchableCraters));
         });
-    }    
+    }
+    
     for (auto& thread : threads) 
     {
         thread.join();
     }
-    cout << "数据结构构建完成" << " ";
+    cout << "数据结构构建完成" << endl;
 }
 
 void MatchingCrater::get_NeighborInformation()
@@ -467,22 +509,21 @@ void MatchingCrater::get_NeighborInformation()
     // 定义一个线程函数，用于处理单个 craterImage
     auto processCraterImage = [&mtx, this](std::unique_ptr<MatchingCrater::CraterImage> &craterImage) 
     {
-        craterImage->neighborCraters.reserve(craterImage->craters.size());
-        craterImage->IdGetNeighborCraters.reserve(craterImage->craters.size());
+        craterImage->neighborCraters.reserve(craterImage->matchableCraters.size());
 
         const int num_threads = std::thread::hardware_concurrency();
         std::vector<std::thread> sub_threads;
-        const size_t chunk_size = (craterImage->craters.size() + num_threads - 1) / num_threads;
-
+        const size_t chunk_size = (craterImage->matchableCraters.size() + num_threads - 1) / num_threads;
+        //craters
         auto process_chunk = [&mtx, this, &craterImage](size_t start, size_t end) 
         {
-            for (size_t i = start; i < end; ++i) 
+            for (size_t i = start; i < end; ++i)
             {
-                auto& KDCrater = craterImage->craters[i];
+                auto& KDCrater = craterImage->matchableCraters[i];
                 std::vector<std::shared_ptr<Crater>> neighbors = craterImage->kdTree->findNeighbors(*KDCrater, this->DOMAIN_RANGE);        
-                //使用emplace_back避免临时对象拷贝
+
                 std::vector<std::shared_ptr<NeighborInformation>> neighborInformations;
-                neighborInformations.reserve(neighbors.size());  // 预分配内存
+                neighborInformations.reserve(neighbors.size());
 
                 //获取邻域角度，距离信息
                 for (auto& neighbor: neighbors)
@@ -497,27 +538,25 @@ void MatchingCrater::get_NeighborInformation()
                     {
                         return a->distance < b->distance; // 按照 distance 从小到大排序
                     });
-                //neighborInformations.erase(neighborInformations.begin());
                 {
                     std::lock_guard<std::mutex> lock(mtx);
                     craterImage->neighborCraters.try_emplace(KDCrater, std::move(neighborInformations));
-                    craterImage->IdGetNeighborCraters.try_emplace(KDCrater->get_id(), craterImage->neighborCraters[KDCrater]);
                 }
             }
         };
         for (int i = 0; i < num_threads; ++i) 
         {
             size_t start = i * chunk_size;
-            size_t end = std::min(start + chunk_size, craterImage->craters.size());
+            size_t end = std::min(start + chunk_size, craterImage->matchableCraters.size());
             if (start < end) 
             {
                 sub_threads.emplace_back(process_chunk, start, end);
             }
         }
 
-        for (auto& thread : sub_threads) {
+        for (auto& thread: sub_threads)
             thread.join();
-        }
+        
     };
     for (auto& craterImage: CraterImages)
     {
@@ -526,9 +565,7 @@ void MatchingCrater::get_NeighborInformation()
 
     // 等待所有线程完成
     for (auto& thread : threads)
-    {
         thread.join();
-    }
     cout << "邻域信息获取完毕" << endl;
 }
 
@@ -657,9 +694,11 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
  */
 std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching_pointProgram(const std::shared_ptr<Crater>& originCrater, const int targetImageId)
 {
+    double geoX1, geoY1;
+    transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
 
     const auto& targetImage = CraterImages[targetImageId];
-    auto& targetCraters = CraterImages[targetImageId]->craters;
+    auto& targetCraters = CraterImages[targetImageId]->matchableCraters;
     const auto originArea = originCrater->get_area();
     const auto& originImage = CraterImages[originCrater->get_image_id()];
 
@@ -682,8 +721,7 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
             case MatchingMethod::GeographicCoordinateTransformation:
                 {
                     // 转换成地理坐标
-                    double geoX1, geoY1, geoX2, geoY2;
-                    transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
+                    double geoX2, geoY2;                    
                     transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
                     if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
                         similarCraters.push_back(*it);   
@@ -709,14 +747,8 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
                 break;
             default:
                 break;
-            }            
-            // double geoX1, geoY1, geoX2, geoY2;
-            // transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
-            // transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
-
-            // if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
-            //     similarCraters.push_back(*it);
-        }
+            }    
+        }        
     }
     /*
     for (auto& i : similarCraters)
@@ -757,10 +789,10 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, co
 
     std::string folderName = savePath + name1 + "_" + name2 + "/";
 
-    int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+    // int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 
-    if (status == 0) cout << "key文件夹创建成功" << endl;
-    else        cout << "key文件夹已存在" << endl;
+    // if (status == 0) cout << "key文件夹创建成功" << endl;
+    // else        cout << "key文件夹已存在" << endl;
 
     tmp_savePath = folderName;
 
@@ -807,7 +839,7 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, co
         for (const auto& filteredKey: filteredKeys)
             totalSize += filteredKey.size();
 
-        file << "IC\n" << "Crater Matched Points\n";
+        file << "IC\n" << "Crater_Matched_Points\n";
         file << Width << "\n" << Height << std::endl;
         file << totalSize << std::endl;
 
@@ -830,7 +862,58 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, co
     write2.join();
     write3.join();
     write4.join();    
-} 
+}
+int MatchingCrater::writeLog(const std::vector<keys> &k1, const std::vector<keys> &k2, const double probability)
+{
+    const int minKey = 5;
+    const int minRansac = 10;
+
+    std::string name1 = get_imageName(CraterImages[0]->imageName);
+    std::string name2 = get_imageName(CraterImages[1]->imageName);
+
+    std::string folderName = savePath + name1 + "_" + name2 + "/";
+
+    int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+
+    if (status == 0) cout << "key文件夹创建成功" << endl;
+    else        cout << "key文件夹已存在" << endl;
+
+    std::string logName = folderName + "match.log";
+    std::ofstream logfile(logName);
+
+    if (!logfile.is_open())
+    {
+        std::cerr << "open log file error" << std::endl;
+        return -1;
+    }
+
+    if (k1.size() > minKey && vecPtSrc.size() )
+    {
+        logfile << "TRUE" << std::endl;
+        logfile << "probability:" << probability << std::endl;
+        logfile << "Before ransac: " << k1.size() << std::endl;
+        logfile << "After ransac: " << vecPtSrc.size() << std::endl;
+        logfile.close();
+        return 0;
+    }
+
+    if (k1.size() <= minKey)
+    {
+        logfile << "FALSE" << std::endl;
+        logfile << "key1 size(" << k1.size() << ")is too small" << std::endl;
+        logfile.close();
+        return -2;
+    }
+    
+    if (vecPtSrc.size() <= minRansac)
+    {
+        logfile << "WARNING" << std::endl;
+        logfile << "ransac size(" << vecPtSrc.size() << ")is too small" << std::endl;
+        logfile.close();
+        return -3;
+    }
+    return -4;
+}
 
 void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
 {
@@ -950,7 +1033,6 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
 
 int MatchingCrater::FilterByHomographyMat(std::vector<keys>& vecSrcKeys, std::vector<keys>& vecDstKeys, std::vector<keys>& vecSrcNew, std::vector<keys>& vecDstNew, cv::Mat& h)
 {
-    // 检查输入有效性
     if (vecSrcKeys.size() != vecDstKeys.size())
         return -1;
 
@@ -970,7 +1052,6 @@ int MatchingCrater::FilterByHomographyMat(std::vector<keys>& vecSrcKeys, std::ve
     cv::Mat Homography = cv::findHomography(srcPoints, dstPoints, inliersMask, cv::RANSAC);
     h = Homography.clone();
 
-    // 根据掩码保留有效点（同时保留所有结构体信息）
     vecSrcNew.clear();
     vecDstNew.clear();
     for (size_t i = 0; i < inliersMask.size(); ++i) 
@@ -982,6 +1063,5 @@ int MatchingCrater::FilterByHomographyMat(std::vector<keys>& vecSrcKeys, std::ve
         }
     }
 
-    // 返回被剔除的点数
     return vecSrcKeys.size() - vecSrcNew.size();
 }
