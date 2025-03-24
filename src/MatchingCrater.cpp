@@ -1,5 +1,5 @@
 #include "MatchingCrater.hpp"
-#include "RemoveOutliers.hpp"
+//#include "RemoveOutliers.hpp"
 using std::cin;
 using std::cout;
 using std::endl;
@@ -66,11 +66,31 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
 {
     GDALAllRegister();
 
-    this->tifPath = "tif/";
-    this->savePath = "saves/";
-    this->csvPath = "csv/";
+    // Set the paths for the images, CSV files, and configuration file.
+    this->pathFile = "cfg/path.cfg";
+    std::ifstream path(pathFile);
+    std::string line;
+    if (!path.is_open())
+        throw std::runtime_error("path file not found");
+
+    std::map<std::string, std::string> pathMap;
+
+    while (std::getline(path, line))
+    {
+        std::istringstream iss(line);
+        std::string label;
+        std::string value;
+        if (iss >> label >> value)
+            pathMap[label] = value;
+    }
+
+    this->tifPath = pathMap["tifPath"];
+    this->savePath = pathMap["savePath"];
+    this->csvPath = pathMap["csvPath"];
     this->matchedByRatio = true;
-    this->configFile = "config.cfg";
+    this->configFile = pathMap["configFile"];
+
+    path.close();
 
     std::ifstream config(configFile);
     if (!config.is_open())    
@@ -78,8 +98,7 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
 
     // Create a map to store key-value pairs from the configuration file
     std::map<std::string, double> configMap;
-    std::string line;
-
+    
     while (std::getline(config, line))
     {
         std::istringstream iss(line);
@@ -89,6 +108,7 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
             configMap[label] = value;
     }
 
+    this->NUM_RATIO = configMap["NUM_RATIO"];
     this->DOMAIN_RANGE = configMap["DOMAIN_RANGE"];
     this->DOMAIN_FACTOR_RATIO = configMap["DOMAIN_FACTOR_RATIO"];
     this->DISTANCE_MAX_GAP = configMap["DISTANCE_MAX_GAP"];
@@ -104,19 +124,19 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
     std::string tifName1 = tifPath + name1 + ".tif";
     std::string tifName2 = tifPath + name2 + ".tif";
 
-    dataset1 = (GDALDataset*)GDALOpen(tifName1.c_str(), GA_ReadOnly); 
-    dataset2 = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
+    datasetSrc = (GDALDataset*)GDALOpen(tifName1.c_str(), GA_ReadOnly); 
+    datasetDst = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
 
-    if (dataset1 == nullptr || dataset2 == nullptr)    
+    if (datasetSrc == nullptr || datasetDst == nullptr)    
         throw std::runtime_error("can not open tiff file");
 
-    this->transformer1 = new GDALCoordinateTransformer(dataset1);
-    this->transformer2 = new GDALCoordinateTransformer(dataset2);
+    this->transformer1 = new GDALCoordinateTransformer(datasetSrc);
+    this->transformer2 = new GDALCoordinateTransformer(datasetDst);
 
-    Src1Height = dataset1->GetRasterYSize();
-    Src1Width = dataset1->GetRasterXSize();
-    Src2Height = dataset2->GetRasterYSize();
-    Src2Width = dataset2->GetRasterXSize();
+    Src1Height = datasetSrc->GetRasterYSize();
+    Src1Width = datasetSrc->GetRasterXSize();
+    Src2Height = datasetDst->GetRasterYSize();
+    Src2Width = datasetDst->GetRasterXSize();
 
     std::cout << "Image information read completed" << "\n";    
 
@@ -142,7 +162,6 @@ void MatchingCrater::runMatching()
 {    
     build_dataStructure();
     get_NeighborInformation();
-    std::cout << "开始匹配" << std::endl;
 }
 
 void MatchingCrater::get_keys()
@@ -298,7 +317,7 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     auto progress_monitor = [&, this]()
     {
         //std::cout << std::unitbuf;  // 禁用输出缓冲
-        const int bar_width = 50;
+        const int bar_width = 40;
     
         //while (currentId < image1->sumIds)
         while (currentId < image1->matchableCraters.size())
@@ -328,7 +347,6 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
         for (int i = 0; i < bar_width; ++i)
             cout << "=";
         cout << "] " << 100 << "% " << "(Match: " << image1->matchableCraters.size() << "/" << image1->matchableCraters.size() << ")    " << std::flush;
-        cout << endl;
     };
     std::thread progress_thread(progress_monitor);
 
@@ -394,12 +412,11 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
         auto tmpSrc = vecPtSrc;
         auto tmpDst = vecPtDst;
         cv::Mat h;
-        cout << FilterByHomographyMat(k1, k2, tmpSrc, tmpDst, h) << endl;
+        cout << FilterByHomographyMat(k1, k2, tmpSrc, tmpDst, h) << " ";
         cout << FilterByHomographyMat(tmpDst, tmpSrc, vecPtDst, vecPtSrc, h) << endl;
     }
 
     int logCode = writeLog(k1, k2, probability);
-    cout << "logCode:" << logCode << endl;
 
     switch (logCode)
     {
@@ -419,7 +436,7 @@ void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const
     }
 
     writeKeys(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
-    cout << "get keys success" << endl;
+    cout << "writeKeys success" << endl;
     if (this->SHOW_IMAGE)
     show_matched_image(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
 }
@@ -463,8 +480,7 @@ void MatchingCrater::getTotalMatchingPoints()
         if (DstPixelX >= 0 - DOMAIN_RANGE && DstPixelX < Src2Width + DOMAIN_RANGE &&
             DstPixelY >= 0 - DOMAIN_RANGE && DstPixelY < Src2Height + DOMAIN_RANGE)
         {
-            totalMatchingPoints++;
-            CraterImages[0]->matchableCraters.push_back(crater);
+            CraterImages[0]->matchableCraters.push_back(std::move(crater));
         }
     }
     for (auto& crater: CraterImages[1]->craters)
@@ -477,17 +493,27 @@ void MatchingCrater::getTotalMatchingPoints()
         if (SrcPixelX >= 0 - DOMAIN_RANGE && SrcPixelX < Src1Width + DOMAIN_RANGE &&
             SrcPixelY >= 0 - DOMAIN_RANGE && SrcPixelY < Src1Height + DOMAIN_RANGE)
         {
-            CraterImages[1]->matchableCraters.push_back(crater);
-        }
+            CraterImages[1]->matchableCraters.push_back(std::move(crater));
+        }        
     }
-    cout << "总可能匹配点数：" << totalMatchingPoints << endl;
+    CraterImages[0]->craters.clear();
+    CraterImages[1]->craters.clear();
+    totalMatchingPoints = std::min(CraterImages[0]->matchableCraters.size(), CraterImages[1]->matchableCraters.size());
+    cout << "Src:" << CraterImages[0]->matchableCraters.size() << ", ";
+    cout << "Dst:" << CraterImages[1]->matchableCraters.size() << endl;
+    if (CraterImages[0]->matchableCraters.size() == 0 || CraterImages[1]->matchableCraters.size() == 0)
+    {
+        writeLog(std::vector<keys>(), std::vector<keys>(), 0);
+        std::cerr << "没有匹配点" << std::endl;
+        exit(-1);
+    }    
 }
 
 void MatchingCrater::build_dataStructure()
 {
     std::vector<std::thread> threads;
     for (auto& craterImage: CraterImages)
-    {      
+    {
         threads.emplace_back([&craterImage]() 
         {
             craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->matchableCraters));
@@ -615,7 +641,6 @@ cv::Mat MatchingCrater::GDALBlockToMat(GDALRasterBand *band, int xoff, int yoff,
 std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<std::shared_ptr<NeighborInformation>>& a, const std::vector<std::shared_ptr<NeighborInformation>> &b) const
 {
     //面积，长宽比因素在matching_pointProgram已经考虑
-
     std::vector<std::shared_ptr<NeighborInformation>> pa(a.begin() + 1, a.end());
     std::vector<std::shared_ptr<NeighborInformation>> pb(b.begin() + 1, b.end());
 
@@ -625,11 +650,10 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
     //坑数比例判断
     if (!pa.size() || !pb.size()) return {false, 0};
     double CraterRatio = static_cast<double>(std::min(pa.size(), pb.size())) / std::max(pa.size(), pb.size());
-    if (CraterRatio < DOMAIN_FACTOR_RATIO)
+    if (CraterRatio < this->NUM_RATIO)
         return {false, 0};
 
-    //cout << "坑比例匹配成功" << endl;
-
+    // 领域坑距离和角度判断
     for (const auto& nowa: pa)
     {
         for (auto itb = pb.begin(); itb != pb.end(); itb++)
@@ -639,14 +663,13 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
             {
                 if (nowa->distance > (*itb)->distance)
                 {
-                    //pb.erase(itb);
                     continue;
                 }
                 else break;
             }
             else if (matchedByRatio && (std::max(nowa->distance, (*itb)->distance) / std::min(nowa->distance, (*itb)->distance)) > DISTANCE_RATIO)
             {
-                //@todo, 2025-02-16
+                //todo, 2025-02-16
                 continue;
             }            
             else
@@ -675,13 +698,11 @@ std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<st
             }
         }
     }
-    //cout << "匹配成功的邻域点:" << matchedNeighborPoints << endl;
     auto probability = matchedNeighborPoints / sumNeighborPoints;
-    //cout << "概率:" << probability << endl;
-    if (probability * CraterRatio < DOMAIN_FACTOR_RATIO)
-        return {false, CraterRatio * probability};
-    //cout << "True" << endl;
-    return {true, CraterRatio * probability};
+    auto totalProbability = 0.5 * (probability + CraterRatio);
+    if (totalProbability < DOMAIN_FACTOR_RATIO)
+        return {false, totalProbability};
+    return {true, totalProbability};
 }
 
 /**
@@ -928,8 +949,8 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
 
     std::vector<cv::Point2f> points1, points2; 
 
-    GDALRasterBand* poSrcBand1 = dataset1->GetRasterBand(1);
-    GDALRasterBand* poSrcBand2 = dataset2->GetRasterBand(1);
+    GDALRasterBand* poSrcBand1 = datasetSrc->GetRasterBand(1);
+    GDALRasterBand* poSrcBand2 = datasetDst->GetRasterBand(1);
 
     cv::Mat img1;
     cv::Mat img2;
@@ -947,8 +968,8 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     ToMat2.join();          
     
     // TODO 防止内存不足提前释放    
-    GDALClose(dataset1);    
-    GDALClose(dataset2);
+    GDALClose(datasetSrc);    
+    GDALClose(datasetDst);
     
     cout << "Mat success" << endl;
 
@@ -1005,7 +1026,7 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     }
 
     // 定义透明度，范围从 0 到 1，值越小越透明
-    double alpha = 0.2;
+    double alpha = 0.5;
 
     // 将临时图像与原始图像进行混合
     cv::addWeighted(tempImage, alpha, mergedImg, 1 - alpha, 0, mergedImg);

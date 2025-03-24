@@ -7,7 +7,7 @@ using namespace std;
 namespace po = boost::program_options;
 
 int main(int argc, char *argv[])
-{    
+{
     // 启动内存检查线程
     std::thread memoryThread(checkMemoryUsage);
     try 
@@ -75,6 +75,5 @@ int main(int argc, char *argv[])
         return 1;
     }
     memoryThread.join();
-    cout << "匹配完成" << endl;
     return 0;
 }
