@@ -1,5 +1,7 @@
 #include "MatchingCrater.hpp"
+#include "json_serializer.hpp"
 //#include "RemoveOutliers.hpp"
+#include <random>
 using std::cin;
 using std::cout;
 using std::endl;
@@ -19,15 +21,15 @@ bool normalExit = false;
  * @param offset A string representing the offset, formatted as "x,y".
  * @param variance A string representing the variance, formatted as "x,y".
  */
-MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, bool filter, bool show_image):
-    FILTER(filter), SHOW_IMAGE(show_image)
+MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, bool filter, bool show_image, bool test):
+    FILTER(filter), SHOW_IMAGE(show_image), TEST(test)
 {
     matchingMethod = GeographicCoordinateTransformation;
     Init(name1, name2);            
 }
 MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance, 
-    bool filter, bool show_image): 
-    FILTER(filter), SHOW_IMAGE(show_image)
+    bool filter, bool show_image, bool test): 
+    FILTER(filter), SHOW_IMAGE(show_image), TEST(test)
 {
     matchingMethod = GuidedMatching;
     std::istringstream iss1(offset);
@@ -59,10 +61,10 @@ MatchingCrater::MatchingCrater(const std::string& name1, const std::string& name
  * 6. Set the image ID for each crater image.
  * 7. Calculate the total number of possible matching points.
  * 
- * @param name1 The name of the first image, without the file extension.
- * @param name2 The name of the second image, without the file extension.
+ * @param SrcName The name of the first image, without the file extension.
+ * @param DstName The name of the second image, without the file extension.
  */
-void MatchingCrater::Init(const std::string& name1, const std::string& name2)
+void MatchingCrater::Init(const std::string& SrcName, const std::string& DstName)
 {
     GDALAllRegister();
 
@@ -121,8 +123,8 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
     config.close();
     
     // Init image information
-    std::string tifName1 = tifPath + name1 + ".tif";
-    std::string tifName2 = tifPath + name2 + ".tif";
+    std::string tifName1 = tifPath + SrcName + ".tif";
+    std::string tifName2 = tifPath + DstName + ".tif";
 
     datasetSrc = (GDALDataset*)GDALOpen(tifName1.c_str(), GA_ReadOnly); 
     datasetDst = (GDALDataset*)GDALOpen(tifName2.c_str(), GA_ReadOnly);
@@ -130,401 +132,91 @@ void MatchingCrater::Init(const std::string& name1, const std::string& name2)
     if (datasetSrc == nullptr || datasetDst == nullptr)    
         throw std::runtime_error("can not open tiff file");
 
-    this->transformer1 = new GDALCoordinateTransformer(datasetSrc);
-    this->transformer2 = new GDALCoordinateTransformer(datasetDst);
+    this->transformerSrc = new GDALCoordinateTransformer(datasetSrc);
+    this->transformerDst = new GDALCoordinateTransformer(datasetDst);
 
-    Src1Height = datasetSrc->GetRasterYSize();
-    Src1Width = datasetSrc->GetRasterXSize();
-    Src2Height = datasetDst->GetRasterYSize();
-    Src2Width = datasetDst->GetRasterXSize();
+    SrcHeight = datasetSrc->GetRasterYSize();
+    SrcWidth = datasetSrc->GetRasterXSize();
+    DstHeight = datasetDst->GetRasterYSize();
+    DstWidth = datasetDst->GetRasterXSize();
 
     std::cout << "Image information read completed" << "\n";    
 
     // Read crater information from CSV files.
-    CSVGet_crater_object(csvPath + name1 + ".csv", csvPath + name2 + ".csv", *this);        
+    CSVGet_crater_object(csvPath + SrcName + ".csv", csvPath + DstName + ".csv", *this);
+    
+    folderName = savePath + SrcName + "_" + DstName + "/";
+    int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
+
+    if (status == 0) cout << "储存文件夹创建成功" << endl;
+    else        cout << "储存文件夹已存在" << endl;
 
     std::cout << "Crater information stored successfully" << std::endl;    
-
-    for (auto& craterImage: CraterImages)    
-        craterImage->imageId = craterImage->craters[0]->get_image_id();
 
     getTotalMatchingPoints();
 }
 
 MatchingCrater::~MatchingCrater()
 {
-    delete transformer1;
-    delete transformer2;
+    delete transformerSrc;
+    delete transformerDst;
     normalExit = true;
-}
-
-void MatchingCrater::runMatching()
-{    
-    build_dataStructure();
-    get_NeighborInformation();
-}
-
-void MatchingCrater::get_keys()
-{
-    show_keys(CraterImages[0], CraterImages[1]);
-}
-
-void MatchingCrater::test_get_NeighborInformation()
-{
-    while (true)
-    {
-        cout << "检验查询坑附近的坑信息" << endl;
-        int imageId, craterId;
-        cout << "输入查询图片id，位置id, -1退出" << endl;
-        cin >> imageId;
-        if (imageId == -1)
-        {
-            cout << "exit" << endl;
-            break;
-        }
-        cin >> craterId;
-        if (imageId < 0 || imageId >= ImagesNum)
-        {
-            cout <<"图片id错误" << endl;
-            continue;
-        }
-        if (craterId <= 0 || craterId > CraterImages[imageId]->sumIds)
-        {
-            cout <<"陨石坑id错误" << endl;
-            continue;
-        }
-        auto& nowCrater = CraterImages[imageId]->IdGetNeighborCraters[craterId][0]->crater;
-        printf("当前查询点坐标:(%lf, %lf), 面积:%lf, 长宽比:%lf\n", nowCrater->get_coordinates()[0], nowCrater->get_coordinates()[1], nowCrater->get_area(), nowCrater->get_aspectRatio());
-        if (CraterImages[imageId]->IdGetNeighborCraters[craterId].size() - 1)
-        {
-            for (auto& neighborCrater: CraterImages[imageId]->IdGetNeighborCraters[craterId])
-            {
-                cout << "编号:" << neighborCrater->crater->get_id() << " 距离:" << neighborCrater->distance << " 角度:" << neighborCrater->angle;
-                printf(" x:%lf y:%lf\n", neighborCrater->crater->get_coordinates()[0], neighborCrater->crater->get_coordinates()[1]);
-            }
-        }
-        else
-            printf("周围%lf范围没有可匹配的坑\n", DOMAIN_RANGE);
-    }
-}
-
-void MatchingCrater::test_matching_pointProgram()
-{
-    //查询相匹配的坑
-    while (true)
-    {
-        cout << "查询相匹配的坑" << endl;
-        int imageId, craterId;
-        cout << "输入查询图片id，位置id, -1退出" << endl;
-        cin >> imageId;
-        if (imageId == -1)
-        {
-            cout << "exit" << endl;
-            break;
-        }
-        cin >> craterId;
-        if (imageId < 0 || imageId >= ImagesNum)
-        {
-            cout <<"图片id错误" << endl;
-            continue;
-        }
-        if (craterId <= 0 || craterId > CraterImages[imageId]->sumIds)
-        {
-            cout <<"陨石坑id错误" << endl;
-            continue;
-        }
-        auto& originCrater = CraterImages[imageId]->IdGetNeighborCraters[craterId];
-        auto& nowCrater = originCrater[0]->crater;
-        printf("当前查询点坐标:(%lf, %lf), 面积:%lf, 长宽比:%lf\n", nowCrater->get_coordinates()[0], nowCrater->get_coordinates()[1], nowCrater->get_area(), nowCrater->get_aspectRatio());
-        for (int i = 0; i <= ImagesNum - 1; i++)
-        {
-            if (i != imageId)
-            {
-                auto matchedCraters = matching_pointProgram(nowCrater, i);
-                if (matchedCraters.empty())
-                    printf("没有在图片%d找到匹配点\n", i);
-                else
-                {
-                    printf("在图片%d找到匹配点\n", i);
-                    for (const auto& matchedCrater: matchedCraters)
-                    {
-                        printf("id:%d 坐标:(%lf, %lf) ", matchedCrater.first->get_id(), matchedCrater.first->get_coordinates()[0], matchedCrater.first->get_coordinates()[1]);
-                        cout << "概率：" << matchedCrater.second << endl;
-                    }
-                }
-            }
-        }
-    }
-}
-
-void MatchingCrater::test_showAllMatchingPoints()
-{
-    for (int imageId = 0; imageId <= ImagesNum - 1; imageId++)
-    {
-        printf("匹配图像%d所有点\n", imageId);
-        int matchedPoints = 0;
-        for (int i = 0; i <= ImagesNum - 1; i++)
-        {
-            if (i == imageId) continue;
-            for (int craterId = 1; craterId <= CraterImages[imageId]->sumIds; craterId++)
-            {
-                auto& originCrater = CraterImages[imageId]->IdGetNeighborCraters[craterId];
-                auto& nowCrater = originCrater[0]->crater;
-                printf("当前查询点坐标:(%lf, %lf), id:%d, 面积:%lf, 长宽比:%lf\n", nowCrater->get_coordinates()[0], nowCrater->get_coordinates()[1], nowCrater->get_id(),
-                        nowCrater->get_area(), nowCrater->get_aspectRatio());
-                std::vector<std::pair<std::shared_ptr<Crater>, double>> matchedCraters = matching_pointProgram(originCrater[0]->crater, i);
-                if (matchedCraters.empty())
-                {
-                    printf("没有找到匹配点\n");
-                }
-                else
-                {
-                    matchedPoints++;
-                    printf("在图片%d找到匹配点\n", i);
-                    for (const auto& matchedCrater: matchedCraters)
-                    {
-                        printf("坐标：(%lf, %lf) ", matchedCrater.first->get_coordinates()[0], matchedCrater.first->get_coordinates()[1]);
-                        cout << "概率：" << matchedCrater.second << endl;
-                    }
-                }
-                cout << endl;
-            }
-            printf("图片有%d个坑匹配成功\n", matchedPoints);
-            cout << "***************************************************************************************************************************************" << endl;
-        }
-    }
-}
-
-/**
- * @brief 展示两个图片的匹配点
- *
- * @param image1 第一个图片的陨石坑对象
- * @param image2 第二个图片的陨石坑对象
- *
- * @return std::vector<std::pair<std::shared_ptr<Crater>, double>> 匹配成功的陨石坑对象和概率
- */
-void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& image1, const std::unique_ptr<CraterImage>& image2)
-{
-    std::sort(image2->matchableCraters.begin(), image2->matchableCraters.end(),
-     [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
-
-    std::atomic<int> matchedPoints{0};
-    std::atomic<int> currentId{0};
-    std::vector<keys> k1, k2;
-    std::mutex k_mutex; // 保护k1/k2和输出
-
-    // 创建进度条显示线程
-    auto progress_monitor = [&, this]()
-    {
-        //std::cout << std::unitbuf;  // 禁用输出缓冲
-        const int bar_width = 40;
-    
-        //while (currentId < image1->sumIds)
-        while (currentId < image1->matchableCraters.size())
-        {
-            // 计算各阶段进度
-            float match_progress = currentId / (float)image1->matchableCraters.size();
-            
-            // 组合总进度（根据阶段权重）
-            float total_progress = match_progress;
-            
-            // 构建进度条
-            cout << "\r[";
-            int pos = bar_width * total_progress;
-            for (int i = 0; i < bar_width; ++i) {
-                if (i < pos) cout << "=";
-                else if (i == pos) cout << ">";
-                else cout << " ";
-            }
-            cout << "] "
-                << double(total_progress * 100.0) << "% "
-                << "(Match: " << currentId << "/" << image1->matchableCraters.size() << ") "
-                << std::flush;
-            
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
-        }
-        cout << "\r[";
-        for (int i = 0; i < bar_width; ++i)
-            cout << "=";
-        cout << "] " << 100 << "% " << "(Match: " << image1->matchableCraters.size() << "/" << image1->matchableCraters.size() << ")    " << std::flush;
-    };
-    std::thread progress_thread(progress_monitor);
-
-    const int NUM_THREADS = std::thread::hardware_concurrency();
-    std::vector<std::thread> threads;
-
-    for (int i = 0; i < NUM_THREADS; i++)
-    {
-        threads.emplace_back([&]()
-        {
-            while (true)
-            {
-                //动态获取任务
-                int CraterId = currentId.fetch_add(1);
-                if (CraterId >= image1->matchableCraters.size()) break;
-                //auto& originCrater = image1->IdGetNeighborCraters[CraterId];
-                auto& originCrater = image1->neighborCraters[image1->matchableCraters[CraterId]];
-                double originx = originCrater[0]->crater->get_coordinates()[0];
-                double originy = originCrater[0]->crater->get_coordinates()[1];
-                double originDiameter = originCrater[0]->crater->get_diameter();
-
-                //将image2中与originCrater中可能匹配的点存放到容器中
-                auto matchedCraters = matching_pointProgram(originCrater[0]->crater, image2->imageId);
-                if (!matchedCraters.empty())
-                {
-                    int currentMatch = matchedPoints.fetch_add(1) + 1;
-                    double maxProbability = 0;
-
-                    //找出最佳匹配
-                    std::shared_ptr<Crater> resultCrater = nullptr;
-                    for (auto& matchedCrater: matchedCraters)
-                    {
-                        if (matchedCrater.second > maxProbability)
-                        {
-                            maxProbability = matchedCrater.second;
-                            resultCrater = matchedCrater.first;
-                        }
-                    }
-                    if (resultCrater)
-                    {
-                        std::lock_guard<std::mutex> lock(k_mutex);
-                        k1.push_back({currentMatch, originx, originy, originDiameter});
-                        k2.push_back({currentMatch, resultCrater->get_coordinates()[0],
-                            resultCrater->get_coordinates()[1], resultCrater->get_diameter()});
-                    }
-                }
-            }
-        });
-    }
-    
-    progress_thread.join();
-    for (auto& t: threads)
-        t.join();
-    
-    double probability = static_cast<double>(matchedPoints.load()) / totalMatchingPoints;
-    cout << "\n匹配概率：" << probability << endl;
-
-    // std::vector<keys>
-    vecPtSrc = k1;
-    vecPtDst = k2;
-    if (this->FILTER)
-    {
-        auto tmpSrc = vecPtSrc;
-        auto tmpDst = vecPtDst;
-        cv::Mat h;
-        cout << FilterByHomographyMat(k1, k2, tmpSrc, tmpDst, h) << " ";
-        cout << FilterByHomographyMat(tmpDst, tmpSrc, vecPtDst, vecPtSrc, h) << endl;
-    }
-
-    int logCode = writeLog(k1, k2, probability);
-
-    switch (logCode)
-    {
-    case -1:
-        cout << "写入日志失败" << endl;
-        return;
-        break;
-    case -2:
-        cout << "key1 size(" << k1.size() << ") is too small" << std::endl;
-        return;
-        break;
-    case -3:
-        cout << "ransac size(" << vecPtSrc.size() << ") is too small" << std::endl;
-        return;
-    default:
-        break;
-    }
-
-    writeKeys(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
-    cout << "writeKeys success" << endl;
-    if (this->SHOW_IMAGE)
-    show_matched_image(vecPtSrc, vecPtDst, image1->imageId, image2->imageId);
-}
-
-
-std::string MatchingCrater::get_imageName(const std::string& imagePath)
-{
-    std::string imageName;
-    auto itend = imagePath.rbegin();
-    for (auto it = imagePath.rbegin(); it != imagePath.rend(); it++)
-    {
-        if (*it == '.')
-            itend = it + 1;
-        if (*it == '/')
-        {
-            imageName = std::string(itend, it);
-            std::reverse(imageName.begin(), imageName.end());
-            break;
-        }
-        else if (it + 1 == imagePath.rend())
-        {
-            imageName = std::string(itend, it + 1);
-            std::reverse(imageName.begin(), imageName.end());
-            break;
-        }
-    }
-
-    return imageName;
 }
 
 void MatchingCrater::getTotalMatchingPoints()
 {
-    for (auto& crater: CraterImages[0]->craters)
+    double maxRange = std::max(DOMAIN_RANGE, SEARCH_RANGE);
+    for (auto& crater: SrcCraterImage->craters)
     {
         double SrcGeoX, SrcGeoY;
-        transformer1->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], SrcGeoX, SrcGeoY);
+        transformerSrc->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], SrcGeoX, SrcGeoY);
         double DstPixelX, DstPixelY;
         // 计算像素坐标
-        transformer2->geoToPixel(SrcGeoX, SrcGeoY, DstPixelX, DstPixelY);
+        transformerDst->geoToPixel(SrcGeoX, SrcGeoY, DstPixelX, DstPixelY);
 
-        if (DstPixelX >= 0 - DOMAIN_RANGE && DstPixelX < Src2Width + DOMAIN_RANGE &&
-            DstPixelY >= 0 - DOMAIN_RANGE && DstPixelY < Src2Height + DOMAIN_RANGE)
+        if (DstPixelX >= 0 - maxRange && DstPixelX < DstWidth + maxRange &&
+            DstPixelY >= 0 - maxRange && DstPixelY < DstHeight + maxRange)
         {
-            CraterImages[0]->matchableCraters.push_back(std::move(crater));
+            SrcCraterImage->matchableCraters.push_back(std::move(crater));
         }
     }
-    for (auto& crater: CraterImages[1]->craters)
+    for (auto& crater: DstCraterImage->craters)
     {
         double DstGeoX, DstGeoY;
-        transformer2->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], DstGeoX, DstGeoY);
+        transformerDst->pixelToGeo(crater->get_coordinates()[0], crater->get_coordinates()[1], DstGeoX, DstGeoY);
         double SrcPixelX, SrcPixelY;
         // 计算像素坐标
-        transformer1->geoToPixel(DstGeoX, DstGeoY, SrcPixelX, SrcPixelY);
-        if (SrcPixelX >= 0 - DOMAIN_RANGE && SrcPixelX < Src1Width + DOMAIN_RANGE &&
-            SrcPixelY >= 0 - DOMAIN_RANGE && SrcPixelY < Src1Height + DOMAIN_RANGE)
+        transformerSrc->geoToPixel(DstGeoX, DstGeoY, SrcPixelX, SrcPixelY);
+        if (SrcPixelX >= 0 - maxRange && SrcPixelX < SrcWidth + maxRange &&
+            SrcPixelY >= 0 - maxRange && SrcPixelY < SrcHeight + maxRange)
         {
-            CraterImages[1]->matchableCraters.push_back(std::move(crater));
+            DstCraterImage->matchableCraters.push_back(std::move(crater));
         }        
     }
-    CraterImages[0]->craters.clear();
-    CraterImages[1]->craters.clear();
-    totalMatchingPoints = std::min(CraterImages[0]->matchableCraters.size(), CraterImages[1]->matchableCraters.size());
-    cout << "Src:" << CraterImages[0]->matchableCraters.size() << ", ";
-    cout << "Dst:" << CraterImages[1]->matchableCraters.size() << endl;
-    if (CraterImages[0]->matchableCraters.size() == 0 || CraterImages[1]->matchableCraters.size() == 0)
+    SrcCraterImage->craters.clear();
+    DstCraterImage->craters.clear();
+    totalMatchingPoints = std::min(SrcCraterImage->matchableCraters.size(), DstCraterImage->matchableCraters.size());
+    cout << "Src:" << SrcCraterImage->matchableCraters.size() << ", ";
+    cout << "Dst:" << DstCraterImage->matchableCraters.size() << endl;
+    if (SrcCraterImage->matchableCraters.size() == 0 || DstCraterImage->matchableCraters.size() == 0)
     {
         writeLog(std::vector<keys>(), std::vector<keys>(), 0);
         std::cerr << "没有匹配点" << std::endl;
         exit(-1);
-    }    
+    }
 }
 
 void MatchingCrater::build_dataStructure()
 {
     std::vector<std::thread> threads;
-    for (auto& craterImage: CraterImages)
-    {
-        threads.emplace_back([&craterImage]() 
-        {
-            craterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(craterImage->matchableCraters));
-        });
-    }
+
+    threads.emplace_back([&](){SrcCraterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(SrcCraterImage->matchableCraters));});
+    threads.emplace_back([&](){DstCraterImage->kdTree = std::unique_ptr<KDTree>(new KDTree(DstCraterImage->matchableCraters));});    
     
     for (auto& thread : threads) 
-    {
         thread.join();
-    }
-    cout << "数据结构构建完成" << endl;
+
+    cout << "DataStructure build success" << endl;
 }
 
 void MatchingCrater::get_NeighborInformation()
@@ -584,17 +276,539 @@ void MatchingCrater::get_NeighborInformation()
             thread.join();
         
     };
-    for (auto& craterImage: CraterImages)
-    {
-        threads.emplace_back(processCraterImage, std::ref(craterImage));
-    }
+
+    threads.emplace_back(processCraterImage, std::ref(SrcCraterImage));
+    threads.emplace_back(processCraterImage, std::ref(DstCraterImage));
 
     // 等待所有线程完成
     for (auto& thread : threads)
         thread.join();
-    cout << "邻域信息获取完毕" << endl;
+
+    cout << "NeighborInformation get success" << endl;
 }
 
+void MatchingCrater::runMatching()
+{    
+    build_dataStructure();
+    get_NeighborInformation();
+
+    if (get_offset() == 1)
+    {
+        matchingMethod = GuidedMatching;
+    }
+    else if (get_offset() == -1)
+    {
+        cout << "引导匹配失败" << endl;
+    }
+}
+
+void MatchingCrater::get_keys()
+{
+    show_keys(SrcCraterImage, DstCraterImage);
+}
+
+/**
+ * @brief 展示两个图片的匹配点
+ *
+ * @param SrcImage 第一个图片的陨石坑对象
+ * @param DstImage 第二个图片的陨石坑对象
+ *
+ * @return std::vector<std::pair<std::shared_ptr<Crater>, double>> 匹配成功的陨石坑对象和概率
+ */
+void MatchingCrater::show_keys(const std::unique_ptr<CraterImage>& SrcImage, const std::unique_ptr<CraterImage>& DstImage)
+{
+    std::atomic<int> matchedPoints{0};
+    std::atomic<int> currentId{0};
+    std::vector<keys> k1, k2;
+    std::mutex k_mutex; // 保护k1/k2和输出
+    std::mutex file_mutex;
+
+    // 创建进度条显示线程
+    auto progress_monitor = [&, this]()
+    {
+        //std::cout << std::unitbuf;  // 禁用输出缓冲
+        const int bar_width = 40;
+    
+        //while (currentId < SrcImage->sumIds)
+        while (currentId < SrcImage->matchableCraters.size())
+        {
+            // 计算各阶段进度
+            float match_progress = currentId / (float)SrcImage->matchableCraters.size();
+            
+            // 组合总进度（根据阶段权重）
+            float total_progress = match_progress;
+            
+            // 构建进度条
+            cout << "\r[";
+            int pos = bar_width * total_progress;
+            for (int i = 0; i < bar_width; ++i) {
+                if (i < pos) cout << "=";
+                else if (i == pos) cout << ">";
+                else cout << " ";
+            }
+            cout << "] "
+                << double(total_progress * 100.0) << "% "
+                << "(Match: " << currentId << "/" << SrcImage->matchableCraters.size() << ") "
+                << std::flush;
+            
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        cout << "\r[";
+        for (int i = 0; i < bar_width; ++i)
+            cout << "=";
+        cout << "] " << 100 << "% " << "(Match: " << SrcImage->matchableCraters.size() << "/" << SrcImage->matchableCraters.size() << ")    " << std::flush;
+    };
+    std::thread progress_thread(progress_monitor);
+
+    const int NUM_THREADS = std::thread::hardware_concurrency();
+    std::vector<std::thread> threads;
+
+    ICraterSerializer::json output = ICraterSerializer::json::array();
+
+    std::sort(DstCraterImage->matchableCraters.begin(), DstCraterImage->matchableCraters.end(),
+    [](const std::shared_ptr<Crater>& a, const std::shared_ptr<Crater>& b)
+        {return a->get_area() < b->get_area();});
+
+    // 匹配工作
+    for (int i = 0; i < NUM_THREADS; i++)
+    {
+        threads.emplace_back([&]()
+        {
+            while (true)
+            {
+                //动态获取任务
+                int CraterId = currentId.fetch_add(1);
+                if (CraterId >= SrcImage->matchableCraters.size()) break;
+
+                //auto& originCrater = SrcImage->neighborCraters[SrcImage->matchableCraters[CraterId]];
+                auto& originCrater = SrcImage->matchableCraters[CraterId];
+
+
+                double originx = originCrater->get_coordinates()[0];
+                double originy = originCrater->get_coordinates()[1];
+                double originDiameter = originCrater->get_diameter();
+
+                //将DstImage中与originCrater中可能匹配的点存放到容器中
+                std::vector<std::pair<std::shared_ptr<Crater>, double>> matchedCraters = matching_pointProgram(originCrater, DstImage);
+
+                if (!matchedCraters.empty())
+                {
+                    
+                    // TODO 输出所有可能匹配的信息
+                    if (TEST)
+                    {
+                        auto serializer = CraterJsonSerializer::create(
+                        {
+                            .include_neighbors = false,
+                            .float_precision = 4
+                        });
+                        
+                        ICraterSerializer::json json = serializer->serialize(originCrater, matchedCraters);
+                        {                            
+                            std::lock_guard<std::mutex> lock(file_mutex);
+                            output.push_back(json);
+                        }
+                    }
+
+                    int currentMatch = matchedPoints.fetch_add(1) + 1;
+                    double maxProbability = 0;
+
+                    //找出最佳匹配
+                    std::shared_ptr<Crater> resultCrater = nullptr;
+                    for (auto& matchedCrater: matchedCraters)
+                    {
+                        if (matchedCrater.second > maxProbability)
+                        {
+                            maxProbability = matchedCrater.second;
+                            resultCrater = matchedCrater.first;
+                        }
+                    }
+                    if (resultCrater)
+                    {
+                        std::lock_guard<std::mutex> lock(k_mutex);
+                        k1.push_back({currentMatch, originx, originy, originDiameter});
+                        k2.push_back({currentMatch, resultCrater->get_coordinates()[0],
+                            resultCrater->get_coordinates()[1], resultCrater->get_diameter()});
+                    }
+                }
+            }
+        });
+    }
+    
+    progress_thread.join();
+    for (auto& t: threads)
+        t.join();
+
+    if (TEST)
+    {
+        std::ofstream file;
+        std::string filename = folderName + "craters.json";
+        file.open(filename, std::ios::out);
+        if (!file.is_open())
+        {
+            std::cerr << "无法打开文件: " << filename << std::endl;
+        }
+        else
+        {
+            file << output.dump(4);
+            std::cout << "数据已写入文件: " << filename << std::endl;
+        }
+        file.close();
+    }
+    
+    double probability = static_cast<double>(matchedPoints.load()) / totalMatchingPoints;
+    cout << "\n匹配概率：" << probability << endl;
+
+    // std::vector<keys>
+    vecPtSrc = k1;
+    vecPtDst = k2;
+    if (this->FILTER)
+    {
+        auto tmpSrc = vecPtSrc;
+        auto tmpDst = vecPtDst;
+        cv::Mat h;
+        cout << FilterByHomographyMat(k1, k2, tmpSrc, tmpDst, h) << " ";
+        cout << FilterByHomographyMat(tmpDst, tmpSrc, vecPtDst, vecPtSrc, h) << endl;
+    }
+
+    int logCode = writeLog(k1, k2, probability);
+
+    switch (logCode)
+    {
+    case -1:
+        cout << "写入日志失败" << endl;
+        return;
+        break;
+    case -2:
+        cout << "key1 size(" << k1.size() << ") is too small" << std::endl;
+        return;
+        break;
+    case -3:
+        cout << "ransac size(" << vecPtSrc.size() << ") is too small" << std::endl;
+        return;
+    default:
+        break;
+    }
+
+    writeKeys(vecPtSrc, vecPtDst);
+    cout << "writeKeys success" << endl;
+    if (this->SHOW_IMAGE)
+    show_matched_image(vecPtSrc, vecPtDst);
+}
+
+/**
+ * @brief 点匹配程序
+ *
+ * @param originCrater 传入点
+ * @param DstImage 目标图像
+ *
+ * @return std::vector<std::pair<std::shared_ptr<Crater>, double>> 匹配成功的点的集合
+ */
+std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching_pointProgram(const std::shared_ptr<Crater>& originCrater, const std::unique_ptr<CraterImage>& DstImage)
+{
+    double geoX1, geoY1;
+    transformerSrc->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
+
+    auto& targetCraters = DstImage->matchableCraters;
+
+
+    const double originArea = originCrater->get_area();
+    const auto& originImage = SrcCraterImage;
+
+    double lowArea = originArea / AREA_TOLERANCE_RATIO;
+    double highArea = originArea * AREA_TOLERANCE_RATIO;
+
+    auto lower = std::lower_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(lowArea), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
+    auto higher = std::upper_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(highArea), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
+
+    std::vector<std::shared_ptr<Crater>> similarCraters;
+    for (auto it = lower; it != higher; it++)
+    {
+        if (std::max(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())/std::min(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())
+                > ASPECTRADIO_RADIO)
+            continue;
+        else
+        {
+            switch (matchingMethod)
+            {
+            case MatchingMethod::GeographicCoordinateTransformation:
+                {
+                    // 转换成地理坐标
+                    double geoX2, geoY2;                    
+                    transformerDst->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
+                    if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
+                        similarCraters.push_back(*it);   
+                }
+                break;
+            case MatchingMethod::GuidedMatching:
+                {
+                    // 偏移像素坐标
+                    double pixelx = originCrater->get_coordinates()[0] + offset[0];
+                    double pixely = originCrater->get_coordinates()[1] + offset[1];
+
+                    // 目标坐标
+                    double targetX = it->get()->get_coordinates()[0];
+                    double targetY = it->get()->get_coordinates()[1];
+
+                    // 计算目标与预测的差值
+                    double dx = std::fabs(targetX - pixelx);
+                    double dy = std::fabs(targetY - pixely);
+
+                    if (dx <= 3 * dispersion[0] && dy <= 3 * dispersion[1])
+                        similarCraters.push_back(*it);
+                }
+                break;
+            default:
+                break;
+            }    
+        }        
+    }
+
+    std::vector<std::pair<std::shared_ptr<Crater>, double>> results;
+    for (auto it = similarCraters.begin(); it != similarCraters.end(); it++)
+    {
+        std::pair<bool, double> judgeProbability = judge_matchingPoint(originImage->neighborCraters[originCrater], DstImage->neighborCraters[*it]);
+        if (judgeProbability.first)
+        {
+            //cout << "概率:" << judgeProbability.second << endl;
+            double 面积长宽比概率 = std::min(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())/std::max(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())
+                    *std::min(it->get()->get_area(), originCrater->get_area())/std::max(it->get()->get_area(), originCrater->get_area());
+            results.push_back({*it, judgeProbability.second * 面积长宽比概率});
+        }
+    }
+    return results;
+}
+
+/**
+ * @brief 判断两个陨石坑是否匹配
+ *
+ * @param a 第一个陨石坑
+ * @param b 第二个陨石坑
+ *
+ * @return std::pair<bool, double> 匹配成功返回true和概率，匹配失败返回false和0
+ */
+std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<std::shared_ptr<NeighborInformation>>& a, const std::vector<std::shared_ptr<NeighborInformation>> &b) const
+{
+    //面积，长宽比因素在matching_pointProgram已经考虑
+    std::vector<std::shared_ptr<NeighborInformation>> pa(a.begin() + 1, a.end());
+    std::vector<std::shared_ptr<NeighborInformation>> pb(b.begin() + 1, b.end());
+
+    double sumNeighborPoints = std::min(pa.size(), pb.size());
+    double matchedNeighborPoints = 0;
+
+    //坑数比例判断
+    if (!pa.size() || !pb.size()) return {false, 0};
+    double CraterRatio = static_cast<double>(std::min(pa.size(), pb.size())) / std::max(pa.size(), pb.size());
+    if (CraterRatio < this->NUM_RATIO)
+        return {false, 0};
+
+    // 领域坑距离和角度判断
+    for (const auto& nowa: pa)
+    {
+        for (auto itb = pb.begin(); itb != pb.end(); itb++)
+        {
+            //距离判断
+            if (!matchedByRatio && std::fabs(nowa->distance - (*itb)->distance) > DISTANCE_MAX_GAP)
+            {
+                if (nowa->distance > (*itb)->distance)                
+                    continue;                
+                else break;
+            }
+            else if (matchedByRatio && (std::max(nowa->distance, (*itb)->distance) / std::min(nowa->distance, (*itb)->distance)) > DISTANCE_RATIO)
+            {
+                //todo, 2025-02-16
+                continue;
+            }            
+            else
+            {
+                //角度判断
+                if (std::fabs(nowa->angle - (*itb)->angle > ANGLE_TOLERANCE))
+                    continue;
+                else
+                {
+                    //判断邻域陨石坑的基本属性
+                    double areaRatio = nowa->crater->get_area() / (*itb)->crater->get_area();
+                    double aspectRadio_radio = nowa->crater->get_aspectRatio() / (*itb)->crater->get_aspectRatio();
+                    if (areaRatio < 1) areaRatio = 1 / areaRatio;
+                    if (aspectRadio_radio < 1) aspectRadio_radio = 1 / aspectRadio_radio;
+                    //cout << "areaRatio:" << areaRatio << " aspectRadio:" << aspectRadio_radio << endl;
+                    if (areaRatio > AREA_TOLERANCE_RATIO || aspectRadio_radio > ASPECTRADIO_RADIO)
+                        continue;
+                    else
+                    {
+                        matchedNeighborPoints++;
+                        //@todo, delete it or not.
+                        pb.erase(itb);
+                        break;
+                    }
+                }
+            }
+        }
+    }
+    auto probability = matchedNeighborPoints / sumNeighborPoints;
+    auto totalProbability = probability * CraterRatio;
+    if (totalProbability < DOMAIN_FACTOR_RATIO)
+        return {false, totalProbability};
+    return {true, totalProbability};
+}
+
+
+std::string MatchingCrater::get_imageName(const std::string& imagePath)
+{
+    std::string imageName;
+    auto itend = imagePath.rbegin();
+    for (auto it = imagePath.rbegin(); it != imagePath.rend(); it++)
+    {
+        if (*it == '.')
+            itend = it + 1;
+        if (*it == '/')
+        {
+            imageName = std::string(itend, it);
+            std::reverse(imageName.begin(), imageName.end());
+            break;
+        }
+        else if (it + 1 == imagePath.rend())
+        {
+            imageName = std::string(itend, it + 1);
+            std::reverse(imageName.begin(), imageName.end());
+            break;
+        }
+    }
+
+    return imageName;
+}
+
+int MatchingCrater::get_offset()
+{
+    std::sort(DstCraterImage->matchableCraters.begin(), DstCraterImage->matchableCraters.end(),
+     [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
+
+    if (matchingMethod == MatchingMethod::GuidedMatching)
+        return 0;
+    
+    const int NUM_MATCHES = totalMatchingPoints / 50;
+    if (NUM_MATCHES == 0)
+        return -1;
+    const int NUM_THREADS = std::thread::hardware_concurrency();
+    std::atomic<int> matchedPoints{0};
+    std::vector<std::thread> threads;
+    std::mutex mtx;
+
+    // 创建随机数生成器
+    std::random_device rd;
+    std::mt19937 gen(rd());
+
+    auto& imageSrc = SrcCraterImage;
+    auto& imageDst = DstCraterImage;
+
+    std::vector<double> offsetsX;
+    std::vector<double> offsetsY;
+    std::vector<keys> k1, k2;
+    // 记录偏移量的总和
+    double totalOffsetX = 0.0;
+    double totalOffsetY = 0.0;
+
+    double dispersionX = 0.0;
+    double dispersionY = 0.0;
+
+    for (int i = 0; i < NUM_THREADS; i++) 
+    {
+        threads.emplace_back([&]()
+        {
+            // 生成均匀分布的整数随机数
+            std::uniform_int_distribution<> dis(0, imageSrc->matchableCraters.size() - 1);
+            while (true)
+            {
+                if (matchedPoints >= NUM_MATCHES)
+                    break;
+
+                // 随机选择一个陨石坑
+                int randomIndex = dis(gen);
+                auto& originCrater = imageSrc->matchableCraters[randomIndex];
+                
+                double originx = originCrater->get_coordinates()[0];
+                double originy = originCrater->get_coordinates()[1];
+                double originDiameter = originCrater->get_diameter();          
+
+                auto matchedCraters = matching_pointProgram(originCrater, imageDst);
+                if (!matchedCraters.empty()) 
+                {
+                    int currentMatch = matchedPoints.fetch_add(1) + 1;                    
+                    double maxProbability = 0;
+
+                    // 找出最佳匹配
+                    std::shared_ptr<Crater> resultCrater = nullptr;
+                    for (auto& matchedCrater : matchedCraters) 
+                    {
+                        if (matchedCrater.second > maxProbability) 
+                        {
+                            maxProbability = matchedCrater.second;
+                            resultCrater = matchedCrater.first;
+                        }
+                    }
+                    if (resultCrater) 
+                    {
+                        std::lock_guard<std::mutex> lock(mtx);
+                        k1.push_back({currentMatch, originx, originy, originDiameter});
+                        k2.push_back({currentMatch, resultCrater->get_coordinates()[0],
+                            resultCrater->get_coordinates()[1], resultCrater->get_diameter()});
+                    }
+                }
+            }
+        });
+    }
+
+    for (auto& thread : threads)
+        thread.join();
+
+    if (matchedPoints == 0)
+        return -1;
+
+    auto tmpSrc = vecPtSrc;
+    auto tmpDst = vecPtDst;
+    cv::Mat h;
+    cout << FilterByHomographyMat(k1, k2, tmpSrc, tmpDst, h) << " ";
+    cout << FilterByHomographyMat(tmpDst, tmpSrc, k2, k1, h) << endl;
+
+    for (int i = 0; i < k1.size(); i++)
+    {
+        double offsetX = k2[i].x - k1[i].x;
+        double offsetY = k2[i].y - k1[i].y;
+        offsetsX.push_back(offsetX);
+        offsetsY.push_back(offsetY);
+        // 累加偏移量
+        totalOffsetX += offsetX;
+        totalOffsetY += offsetY;
+    }
+
+    // 计算平均偏移量
+    double averageOffsetX = totalOffsetX / k1.size();
+    double averageOffsetY = totalOffsetY / k2.size();
+
+    // 输出平均偏移量
+    std::cout << "Average Offset X: " << averageOffsetX << ", ";
+    std::cout << "Average Offset Y: " << averageOffsetY << std::endl;
+
+    // 计算偏移量的标准差
+    for (double offsetX : offsetsX)    
+        dispersionX += (offsetX - averageOffsetX) * (offsetX - averageOffsetX);    
+
+    for (double offsetY : offsetsY)
+        dispersionY += (offsetY - averageOffsetY) * (offsetY - averageOffsetY);
+
+    dispersionX = std::sqrt(dispersionX / matchedPoints);
+    dispersionY = std::sqrt(dispersionY / matchedPoints);
+
+    cout << "dispersionX: " << dispersionX << ", ";
+    cout << "dispersionY: " << dispersionY << endl;
+
+    dispersion.push_back(dispersionX);
+    dispersion.push_back(dispersionY);
+
+    offset.push_back(averageOffsetX);
+    offset.push_back(averageOffsetY);    
+    return 1;
+}
 
 cv::Point2f MatchingCrater::convertCoordinates(const cv::Point2f &originalCoord, const cv::Size &originalSize, const cv::Size &resizedSize)
 {
@@ -631,167 +845,6 @@ cv::Mat MatchingCrater::GDALBlockToMat(GDALRasterBand *band, int xoff, int yoff,
 }
 
 /**
- * @brief 判断两个陨石坑是否匹配
- *
- * @param a 第一个陨石坑
- * @param b 第二个陨石坑
- *
- * @return std::pair<bool, double> 匹配成功返回true和概率，匹配失败返回false和0
- */
-std::pair<bool, double> MatchingCrater::judge_matchingPoint(const std::vector<std::shared_ptr<NeighborInformation>>& a, const std::vector<std::shared_ptr<NeighborInformation>> &b) const
-{
-    //面积，长宽比因素在matching_pointProgram已经考虑
-    std::vector<std::shared_ptr<NeighborInformation>> pa(a.begin() + 1, a.end());
-    std::vector<std::shared_ptr<NeighborInformation>> pb(b.begin() + 1, b.end());
-
-    double sumNeighborPoints = std::min(pa.size(), pb.size());
-    double matchedNeighborPoints = 0;
-
-    //坑数比例判断
-    if (!pa.size() || !pb.size()) return {false, 0};
-    double CraterRatio = static_cast<double>(std::min(pa.size(), pb.size())) / std::max(pa.size(), pb.size());
-    if (CraterRatio < this->NUM_RATIO)
-        return {false, 0};
-
-    // 领域坑距离和角度判断
-    for (const auto& nowa: pa)
-    {
-        for (auto itb = pb.begin(); itb != pb.end(); itb++)
-        {
-            //距离判断
-            if (!matchedByRatio && std::fabs(nowa->distance - (*itb)->distance) > DISTANCE_MAX_GAP)
-            {
-                if (nowa->distance > (*itb)->distance)
-                {
-                    continue;
-                }
-                else break;
-            }
-            else if (matchedByRatio && (std::max(nowa->distance, (*itb)->distance) / std::min(nowa->distance, (*itb)->distance)) > DISTANCE_RATIO)
-            {
-                //todo, 2025-02-16
-                continue;
-            }            
-            else
-            {
-                //角度判断
-                if (std::fabs(nowa->angle - (*itb)->angle > ANGLE_TOLERANCE))
-                    continue;
-                else
-                {
-                    //判断邻域陨石坑的基本属性
-                    double areaRatio = nowa->crater->get_area() / (*itb)->crater->get_area();
-                    double aspectRadio_radio = nowa->crater->get_aspectRatio() / (*itb)->crater->get_aspectRatio();
-                    if (areaRatio < 1) areaRatio = 1 / areaRatio;
-                    if (aspectRadio_radio < 1) aspectRadio_radio = 1 / aspectRadio_radio;
-                    //cout << "areaRatio:" << areaRatio << " aspectRadio:" << aspectRadio_radio << endl;
-                    if (areaRatio > AREA_TOLERANCE_RATIO || aspectRadio_radio > ASPECTRADIO_RADIO)
-                        continue;
-                    else
-                    {
-                        matchedNeighborPoints++;
-                        //@todo, delete it or not.
-                        pb.erase(itb);
-                        break;
-                    }
-                }
-            }
-        }
-    }
-    auto probability = matchedNeighborPoints / sumNeighborPoints;
-    auto totalProbability = 0.5 * (probability + CraterRatio);
-    if (totalProbability < DOMAIN_FACTOR_RATIO)
-        return {false, totalProbability};
-    return {true, totalProbability};
-}
-
-/**
- * @brief 点匹配程序
- *
- * @param originCrater 传入点
- * @param targetImageId 目标图像id
- *
- * @return std::vector<std::pair<std::shared_ptr<Crater>, double>> 匹配成功的点的集合
- */
-std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching_pointProgram(const std::shared_ptr<Crater>& originCrater, const int targetImageId)
-{
-    double geoX1, geoY1;
-    transformer1->pixelToGeo(originCrater->get_coordinates()[0], originCrater->get_coordinates()[1], geoX1, geoY1);
-
-    const auto& targetImage = CraterImages[targetImageId];
-    auto& targetCraters = CraterImages[targetImageId]->matchableCraters;
-    const auto originArea = originCrater->get_area();
-    const auto& originImage = CraterImages[originCrater->get_image_id()];
-
-    double lowArea = originArea / AREA_TOLERANCE_RATIO;
-    double highArea = originArea * AREA_TOLERANCE_RATIO;
-
-    auto lower = std::lower_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(lowArea), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
-    auto higher = std::upper_bound(targetCraters.begin(), targetCraters.end(), std::make_shared<Crater>(highArea), [](const std::shared_ptr<Crater> &a, const std::shared_ptr<Crater> &b) {return a->get_area() < b->get_area();});
-
-    std::vector<std::shared_ptr<Crater>> similarCraters;
-    for (auto it = lower; it != higher; it++)
-    {
-        if (std::max(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())/std::min(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())
-                > ASPECTRADIO_RADIO)
-            continue;
-        else
-        {
-            switch (matchingMethod)
-            {
-            case MatchingMethod::GeographicCoordinateTransformation:
-                {
-                    // 转换成地理坐标
-                    double geoX2, geoY2;                    
-                    transformer2->pixelToGeo(it->get()->get_coordinates()[0], it->get()->get_coordinates()[1], geoX2, geoY2);
-                    if (std::sqrt(std::pow(geoX1 - geoX2, 2) + std::pow(geoY1 - geoY2, 2)) <= SEARCH_RANGE)
-                        similarCraters.push_back(*it);   
-                }
-                break;
-            case MatchingMethod::GuidedMatching:
-                {
-                    // 偏移像素坐标
-                    double pixelx = originCrater->get_coordinates()[0] + offset[0];
-                    double pixely = originCrater->get_coordinates()[1] + offset[1];
-
-                    // 目标坐标
-                    double targetX = it->get()->get_coordinates()[0];
-                    double targetY = it->get()->get_coordinates()[1];
-
-                    // 计算目标与预测的差值
-                    double dx = std::fabs(targetX - pixelx);
-                    double dy = std::fabs(targetY - pixely);
-
-                    if (dx <= 3 * dispersion[0] && dy <= 3 * dispersion[1])
-                        similarCraters.push_back(*it); 
-                }
-                break;
-            default:
-                break;
-            }    
-        }        
-    }
-    /*
-    for (auto& i : similarCraters)
-        printf("%lf %lf, area:%lf aspectRatio:%lf id:%d imgId:%d\n", i->get_coordinates()[0], i->get_coordinates()[1], i->get_area(), i->get_aspectRatio(), i->get_id(), i->get_image_id());
-    */
-
-    std::vector<std::pair<std::shared_ptr<Crater>, double>> results;
-    for (auto it = similarCraters.begin(); it != similarCraters.end(); it++)
-    {
-        auto judgeProbability = judge_matchingPoint(originImage->neighborCraters[originCrater], targetImage->neighborCraters[*it]);
-        if (judgeProbability.first)
-        {
-            //cout << "概率:" << judgeProbability.second << endl;
-            double 面积长宽比概率 = std::min(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())/std::max(it->get()->get_aspectRatio(), originCrater->get_aspectRatio())
-                    *std::min(it->get()->get_area(), originCrater->get_area())/std::max(it->get()->get_area(), originCrater->get_area());
-            results.push_back({*it, judgeProbability.second * 面积长宽比概率});
-        }
-    }
-    return results;
-}
-
-/**
  * @brief 展示匹配的点
  *
  * @param key1 第一个点
@@ -801,14 +854,12 @@ std::vector<std::pair<std::shared_ptr<Crater>, double>> MatchingCrater::matching
  *
  * @return void
  */
-void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, const std::vector<MatchingCrater::keys>& key2, int imageId1, int imageId2)
+void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, const std::vector<MatchingCrater::keys>& key2)
 {
     std::string ID = std::to_string(keyNums++);
 
-    std::string name1 = get_imageName(CraterImages[imageId1]->imageName);
-    std::string name2 = get_imageName(CraterImages[imageId2]->imageName);
-
-    std::string folderName = savePath + name1 + "_" + name2 + "/";
+    std::string name1 = get_imageName(SrcCraterImage->imageName);
+    std::string name2 = get_imageName(DstCraterImage->imageName);
 
     // int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
 
@@ -874,10 +925,10 @@ void MatchingCrater::writeKeys(const std::vector<MatchingCrater::keys>& key1, co
             }
         }
     };
-    std::thread write1(writeToFile, fileName1, std::ref(filteredKey1s), std::ref(diameterLabels), Src1Width, Src1Height, key1.size());
-    std::thread write2(writeToFile, fileName2, std::ref(filteredKey2s), std::ref(diameterLabels), Src2Width, Src2Height, key2.size());
-    std::thread write3(writeToFile, fileName3, std::ref(filteredKey2s), std::ref(diameterLabels), Src2Width, Src2Height, key2.size());
-    std::thread write4(writeToFile, fileName4, std::ref(filteredKey1s), std::ref(diameterLabels), Src1Width, Src1Height, key1.size());
+    std::thread write1(writeToFile, fileName1, std::ref(filteredKey1s), std::ref(diameterLabels), SrcWidth, SrcHeight, key1.size());
+    std::thread write2(writeToFile, fileName2, std::ref(filteredKey2s), std::ref(diameterLabels), DstWidth, DstHeight, key2.size());
+    std::thread write3(writeToFile, fileName3, std::ref(filteredKey2s), std::ref(diameterLabels), DstWidth, DstHeight, key2.size());
+    std::thread write4(writeToFile, fileName4, std::ref(filteredKey1s), std::ref(diameterLabels), SrcWidth, SrcHeight, key1.size());
 
     write1.join();
     write2.join();
@@ -889,15 +940,8 @@ int MatchingCrater::writeLog(const std::vector<keys> &k1, const std::vector<keys
     const int minKey = 5;
     const int minRansac = 10;
 
-    std::string name1 = get_imageName(CraterImages[0]->imageName);
-    std::string name2 = get_imageName(CraterImages[1]->imageName);
-
-    std::string folderName = savePath + name1 + "_" + name2 + "/";
-
-    int status = mkdir(folderName.c_str(), S_IRWXU | S_IRWXG | S_IRWXO);
-
-    if (status == 0) cout << "key文件夹创建成功" << endl;
-    else        cout << "key文件夹已存在" << endl;
+    std::string name1 = get_imageName(SrcCraterImage->imageName);
+    std::string name2 = get_imageName(DstCraterImage->imageName);
 
     std::string logName = folderName + "match.log";
     std::ofstream logfile(logName);
@@ -911,9 +955,12 @@ int MatchingCrater::writeLog(const std::vector<keys> &k1, const std::vector<keys
     if (k1.size() > minKey && vecPtSrc.size() )
     {
         logfile << "TRUE" << std::endl;
+        logfile << "matchable points:" << totalMatchingPoints << std::endl;
         logfile << "probability:" << probability << std::endl;
         logfile << "Before ransac: " << k1.size() << std::endl;
         logfile << "After ransac: " << vecPtSrc.size() << std::endl;
+        logfile << "Offset: " << offset[0] << " " << offset[1] << std::endl;
+        logfile << "Dispersion: " << dispersion[0] << " " << dispersion[1] << std::endl;
         logfile.close();
         return 0;
     }
@@ -922,6 +969,8 @@ int MatchingCrater::writeLog(const std::vector<keys> &k1, const std::vector<keys
     {
         logfile << "FALSE" << std::endl;
         logfile << "key1 size(" << k1.size() << ")is too small" << std::endl;
+        logfile << "Offset: " << offset[0] << " " << offset[1] << std::endl;
+        logfile << "Dispersion: " << dispersion[0] << " " << dispersion[1] << std::endl;
         logfile.close();
         return -2;
     }
@@ -930,13 +979,15 @@ int MatchingCrater::writeLog(const std::vector<keys> &k1, const std::vector<keys
     {
         logfile << "WARNING" << std::endl;
         logfile << "ransac size(" << vecPtSrc.size() << ")is too small" << std::endl;
+        logfile << "Offset: " << offset[0] << " " << offset[1] << std::endl;
+        logfile << "Dispersion: " << dispersion[0] << " " << dispersion[1] << std::endl;
         logfile.close();
         return -3;
     }
     return -4;
 }
 
-void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2, int imageId1, int imageId2)
+void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> &key1, const std::vector<MatchingCrater::keys> &key2)
 {
 
     auto convertGDALBlockToMat = [this](GDALRasterBand* poSrcBand, int width, int height, cv::Mat& img) {img = this->GDALBlockToMat(poSrcBand, 0, 0, width, height);};
@@ -959,8 +1010,8 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     std::thread ToPoint2f1(convertKeypointsToPoints, std::ref(key1), std::ref(points1));
     std::thread ToPoint2f2(convertKeypointsToPoints, std::ref(key2), std::ref(points2));
     
-    std::thread ToMat1(convertGDALBlockToMat, poSrcBand1, Src1Width, Src1Height, std::ref(img1));
-    std::thread ToMat2(convertGDALBlockToMat, poSrcBand2, Src2Width, Src2Height, std::ref(img2));  
+    std::thread ToMat1(convertGDALBlockToMat, poSrcBand1, SrcWidth, SrcHeight, std::ref(img1));
+    std::thread ToMat2(convertGDALBlockToMat, poSrcBand2, DstWidth, DstHeight, std::ref(img2));  
 
     ToPoint2f1.join();
     ToPoint2f2.join();
@@ -979,14 +1030,14 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     cv::Size resizedSize1 = originalSize1;
     cv::Size resizedSize2 = originalSize2;
 
-    while (img1.cols * img1.rows > 2000000)
+    while (img1.cols * img1.rows > 20000000)
     {
         cv::Mat resized_img;
         cv::resize(img1, resized_img, cv::Size(img1.cols / 2, img1.rows / 2));
         img1 = resized_img;
         resizedSize1 = img1.size();
     }
-    while (img2.cols * img2.rows > 2000000)
+    while (img2.cols * img2.rows > 20000000)
     {
         cv::Mat resized_img;
         cv::resize(img2, resized_img, cv::Size(img2.cols / 2, img2.rows / 2));
@@ -1031,7 +1082,7 @@ void MatchingCrater::show_matched_image(const std::vector<MatchingCrater::keys> 
     // 将临时图像与原始图像进行混合
     cv::addWeighted(tempImage, alpha, mergedImg, 1 - alpha, 0, mergedImg);
 
-    std::string saveName = get_imageName(CraterImages[imageId1]->imageName) + "_and_" + get_imageName(CraterImages[imageId2]->imageName) + ".png";
+    std::string saveName = get_imageName(SrcCraterImage->imageName) + "_and_" + get_imageName(DstCraterImage->imageName) + ".png";
     // 显示合并后的图像
     cv::imshow(saveName, mergedImg);
     cv::imwrite(tmp_savePath + saveName, mergedImg);    

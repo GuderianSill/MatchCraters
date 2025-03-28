@@ -41,6 +41,7 @@ private:
     double SEARCH_RANGE;
     bool FILTER;
     bool SHOW_IMAGE;
+    bool TEST;
 
     enum MatchingMethod 
     {
@@ -54,6 +55,7 @@ private:
     std::string savePath;
     std::string tmp_savePath;
     std::string csvPath;
+    std::string folderName;
 
     //配置文件
     std::string configFile;
@@ -62,16 +64,19 @@ private:
     // 图像信息
     GDALDataset* datasetSrc;
     GDALDataset* datasetDst;
-    int Src1Width;
-    int Src1Height;
-    int Src2Width;
-    int Src2Height;
+
+    int SrcWidth;
+    int SrcHeight;
+
+    int DstWidth;
+    int DstHeight;
+
     // 图像偏移信息
     std::vector<double> offset;
     std::vector<double> dispersion; // 偏移量的标准差
 
-    GDALCoordinateTransformer* transformer1;
-    GDALCoordinateTransformer* transformer2;
+    GDALCoordinateTransformer* transformerSrc;
+    GDALCoordinateTransformer* transformerDst;
 
     //所有能被匹配的埙石坑数目 
     int totalMatchingPoints;
@@ -88,13 +93,12 @@ private:
         double angle;
         std::shared_ptr<Crater> crater;
         NeighborInformation(double distance, double angle, std::shared_ptr<Crater> crater): distance(distance), angle(angle), crater(crater){}
-    };    
+    };
 
     //用于存储每个图片中的埙石坑信息
     struct CraterImage    
     {
         std::string imageName;
-        int imageId;
         int sumIds;
         std::vector<std::shared_ptr<Crater>> craters;
         std::vector<std::shared_ptr<Crater>> matchableCraters;
@@ -104,7 +108,9 @@ private:
     };
     //用于存储每个图片中的埙石坑信息
     std::vector<std::unique_ptr<CraterImage>> CraterImages;
-    int ImagesNum;
+
+    std::unique_ptr<CraterImage> SrcCraterImage;
+    std::unique_ptr<CraterImage> DstCraterImage;
 
     std::string get_imageName(const std::string& imagePath);
 
@@ -112,18 +118,20 @@ private:
     void Init(const std::string& name1, const std::string& name2);
   
     void getTotalMatchingPoints();
+
     void build_dataStructure();
     void get_NeighborInformation();
+    int get_offset();
+
     cv::Point2f convertCoordinates(const cv::Point2f& originalCoord, const cv::Size& originalSize, const cv::Size& resizedSize);
     cv::Mat GDALBlockToMat(GDALRasterBand *band, int xoff, int yoff, int width, int height);
 
     std::pair<bool, double> judge_matchingPoint(const std::vector<std::shared_ptr<NeighborInformation>>& a, const std::vector<std::shared_ptr<NeighborInformation>>& b) const;
-    std::vector<std::pair<std::shared_ptr<Crater>, double>> matching_pointProgram(const std::shared_ptr<Crater>& crater, const int imageId);
-    void matching_imageProgram();
+    std::vector<std::pair<std::shared_ptr<Crater>, double>> matching_pointProgram(const std::shared_ptr<Crater>& crater, const std::unique_ptr<CraterImage>& DstImage);
     void show_keys(const std::unique_ptr<CraterImage>& image1, const std::unique_ptr<CraterImage>& image2);
-    void writeKeys(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
+    void writeKeys(const std::vector<keys>& key1, const std::vector<keys>& key2);
     int writeLog(const std::vector<keys>& k1, const std::vector<keys>& k2, const double probability);
-    void show_matched_image(const std::vector<keys>& key1, const std::vector<keys>& key2, int imageId1, int imageId2);
+    void show_matched_image(const std::vector<keys>& key1, const std::vector<keys>& key2);
 
     // struct CompareSet
     // {
@@ -131,17 +139,12 @@ private:
     // };
 
 public:
-    MatchingCrater(const std::string& name1, const std::string& name2, bool filter, bool show_image);
+    MatchingCrater(const std::string& name1, const std::string& name2, bool filter, bool show_image, bool test);
     MatchingCrater(const std::string& name1, const std::string& name2, const std::string& offset, const std::string& variance,
-        bool filter, bool show_image);
+        bool filter, bool show_image, bool test);
     ~MatchingCrater();    
     void runMatching();
     void get_keys();
-
-    //测试用    
-    void test_get_NeighborInformation();
-    void test_matching_pointProgram();
-    void test_showAllMatchingPoints();    
 
     static int keyNums;
     friend void CSVGet_crater_object(const std::string name1, const std::string name2, MatchingCrater& matchingCrater);

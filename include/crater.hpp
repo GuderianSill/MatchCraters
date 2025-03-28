@@ -8,15 +8,15 @@
 class Crater
 {
 private:
+    int id;
     std::vector<double> coordinates;//坐标
     double width;
     double height;
     double aspectRatio;             //宽高比
     double area;
-    double diameter;
-    int id;
-    int image_id;
     std::vector<std::shared_ptr<Crater>> neighbors;
+    double diameter;    
+    int image_id;
     static double calculateEuclideanDistance(const std::vector<double>& coord1, const std::vector<double>& coord2);
 
 public:
@@ -27,11 +27,14 @@ public:
     Crater(double area, int id): area(area), id(id){}
     Crater(double area): area(area){}
 
-    double get_aspectRatio() const;
-    std::vector<double> get_coordinates() const;
-    double get_area() const;
-    double get_diameter() const;
     int get_id() const;
+    std::vector<double> get_coordinates() const;
+    double get_aspectRatio() const;
+    double get_width() const;
+    double get_height() const;
+    double get_area() const;
+    const std::vector<std::shared_ptr<Crater>>& get_neighbors() const;
+    double get_diameter() const;
     int get_image_id() const;   
 
     static double euclideanDistance(const Crater& start, const Crater& end);

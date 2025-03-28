@@ -1,4 +1,5 @@
 #include "MatchingCrater.hpp"
+#include "json_serializer.hpp"
 #include "getdata.hpp"
 #include "debug.cxx"
 #include <boost/program_options.hpp>
@@ -14,6 +15,7 @@ int main(int argc, char *argv[])
     {        
         bool filter;
         bool show_image;
+        bool test;
         po::options_description desc("Allowed options");
         desc.add_options()
             ("help", "produce help message")
@@ -22,7 +24,8 @@ int main(int argc, char *argv[])
             ("offset", po::value<std::string>(), "set offset value")
             ("variance", po::value<std::string>(), "set variance value")
             ("filter", po::value<bool>(&filter)->default_value(false), "set whether filter")
-            ("image", po::value<bool>(&show_image)->default_value(true), "set whether show image");
+            ("image", po::value<bool>(&show_image)->default_value(true), "set whether show image")
+            ("test", po::value<bool>(&test)->default_value(false), "set whether show test crater");
 
         po::variables_map vm;
         try 
@@ -53,11 +56,11 @@ int main(int argc, char *argv[])
         {
             std::string offset = vm["offset"].as<std::string>();
             std::string variance = vm["variance"].as<std::string>();
-            MC = new MatchingCrater(N1, N2, offset, variance, filter, show_image);
+            MC = new MatchingCrater(N1, N2, offset, variance, filter, show_image, test);
         } 
         else
         {
-            MC = new MatchingCrater(N1, N2, filter, show_image);
+            MC = new MatchingCrater(N1, N2, filter, show_image, test);
         }
         MC->runMatching();
         MC->get_keys();

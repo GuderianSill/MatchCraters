@@ -13,12 +13,27 @@ double Crater::calculateEuclideanDistance(const std::vector<double> &coord1, con
 }
 
 double Crater::get_aspectRatio() const { return aspectRatio; }
+double Crater::get_width() const
+{
+    return width;
+}
+
+double Crater::get_height() const
+{
+    return height;
+}
+
 std::vector<double> Crater::get_coordinates() const { return coordinates; }
 int Crater::get_id() const { return id; }
 
 int Crater::get_image_id() const { return image_id; }
 
 double Crater::get_area() const { return area; }
+
+const std::vector<std::shared_ptr<Crater>>& Crater::get_neighbors() const
+{
+    return neighbors;
+}
 
 double Crater::get_diameter() const { return diameter; }
 
