@@ -292,11 +292,13 @@ void MatchingCrater::runMatching()
     build_dataStructure();
     get_NeighborInformation();
 
-    if (get_offset() == 1)
+    int ifOffset = get_offset();
+
+    if (ifOffset == 1)
     {
         matchingMethod = GuidedMatching;
     }
-    else if (get_offset() == -1)
+    else if (ifOffset == -1)
     {
         cout << "引导匹配失败" << endl;
     }
@@ -807,6 +809,14 @@ int MatchingCrater::get_offset()
 
     offset.push_back(averageOffsetX);
     offset.push_back(averageOffsetY);    
+
+    if (std::isnan(averageOffsetX) || std::isnan(averageOffsetY) || dispersionX >= 10 || dispersionY >= 10) 
+    {
+        // 处理 NaN 的情况
+        std::cerr << "Warning: offset error" << std::endl;
+        return -1;
+    }
+    
     return 1;
 }
 
